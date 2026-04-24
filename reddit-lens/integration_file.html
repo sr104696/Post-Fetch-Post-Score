@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reddit Lens - Gem Analyzer</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { 
+            font-family: system-ui, -apple-system, sans-serif; 
+            background: #0d1117; 
+            color: #e6edf3; 
+            min-height: 100vh;
+        }
+        
+        /* Header matching Reddit Lens theme */
+        header { 
+            padding: 1rem 1.5rem; 
+            border-bottom: 1px solid #21262d; 
+            display: flex; 
+            align-items: center; 
+            gap: .6rem; 
+            flex-wrap: wrap; 
+            background: #0d1117;
+        }
+        header h1 { font-size: 1.2rem; font-weight: 600; color: #e6edf3; }
+        
+        .hbtn { 
+            padding: .45rem 1.1rem; 
+            color: #fff; 
+            border: none; 
+            border-radius: 6px; 
+            cursor: pointer; 
+            font-size: .9rem;
+        }
+        .hbtn:disabled { opacity: .5; cursor: default; }
+        #fetch-btn { background: #238636; }
+        #analyze-btn { background: #1f6feb; }
+        #export-btn { background: #8957e5; }
+        
+        #status { font-size: .82rem; color: #8b949e; margin-left: auto; }
+        
+        /* Tabs */
+        .tabs { 
+            display: flex; 
+            gap: .5rem; 
+            padding: .6rem 1.5rem; 
+            border-bottom: 1px solid #21262d;
+            background: #0d1117;
+        }
+        .tab-btn {
+            padding: .5rem 1rem;
+            background: #21262d;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            color: #8b949e;
+            cursor: pointer;
+            font-size: .85rem;
+            transition: all 0.2s;
+        }
+        .tab-btn:hover { background: #30363d; color: #e6edf3; }
+        .tab-btn.active { 
+            background: #1f6feb; 
+            color: #fff; 
+            border-color: #1f6feb;
+        }
+        
+        /* Tab content */
+        .tab-content { display: none; padding: 1.2rem 1.5rem; }
+        .tab-content.active { display: block; }
+        
+        /* Controls panel */
+        .controls-panel {
+            display: flex;
+            gap: .8rem;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 1rem;
+            padding: .8rem;
+            background: #161b22;
+            border-radius: 6px;
+            border: 1px solid #21262d;
+        }
+        .controls-panel label { 
+            font-size: .82rem; 
+            color: #8b949e;
+            display: flex;
+            align-items: center;
+            gap: .3rem;
+        }
+        .controls-panel select, 
+        .controls-panel input[type="text"],
+        .controls-panel input[type="number"] {
+            background: #0d1117;
+            color: #e6edf3;
+            border: 1px solid #30363d;
+            border-radius: 5px;
+            padding: .4rem .6rem;
+            font-size: .82rem;
+        }
+        .controls-panel input[type="text"] { width: 250px; }
+        .controls-panel input[type="number"] { width: 80px; }
+        
+        /* Results grid - matching Reddit Lens card style */
+        #results-grid { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); 
+            gap: 1rem; 
+        }
+        .card { 
+            background: #161b22; 
+            border: 1px solid #21262d; 
+            border-radius: 8px; 
+            padding: 1rem; 
+            display: flex; 
+            flex-direction: column; 
+            gap: .5rem;
+            transition: border-color 0.2s;
+        }
+        .card:hover { border-color: #30363d; }
+        .card-title { 
+            color: #58a6ff; 
+            text-decoration: none; 
+            font-size: .95rem; 
+            font-weight: 500; 
+            line-height: 1.4;
+        }
+        .card-title:hover { text-decoration: underline; }
+        .card-meta { 
+            font-size: .75rem; 
+            color: #8b949e; 
+            display: flex; 
+            flex-wrap: wrap; 
+            gap: .4rem;
+        }
+        .badge { 
+            background: #21262d; 
+            border-radius: 4px; 
+            padding: .1rem .4rem;
+            font-size: .7rem;
+        }
+        .badge.gem { background: #1f2d1f; color: #3fb950; }
+        .badge.controversy { background: #3d1f1f; color: #f85149; }
+        .badge.velocity { background: #1f2d1f; color: #3fb950; }
+        .badge.engagement { background: #1f2530; color: #58a6ff; }
+        .card-preview { 
+            font-size: .8rem; 
+            color: #8b949e; 
+            line-height: 1.5;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+        }
+        .card-links { 
+            font-size: .75rem; 
+            display: flex; 
+            gap: .8rem; 
+        }
+        .card-links a { color: #8b949e; text-decoration: none; }
+        .card-links a:hover { color: #58a6ff; }
+        
+        /* Score display */
+        .score-display {
+            display: flex;
+            gap: .5rem;
+            flex-wrap: wrap;
+            margin-top: .5rem;
+            padding-top: .5rem;
+            border-top: 1px solid #21262d;
+        }
+        .score-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: .3rem .5rem;
+            background: #21262d;
+            border-radius: 4px;
+            min-width: 60px;
+        }
+        .score-label { font-size: .65rem; color: #8b949e; text-transform: uppercase; }
+        .score-value { font-size: .85rem; font-weight: 600; color: #e6edf3; }
+        .score-value.highlight { color: #3fb950; }
+        
+        /* Delta indicators */
+        .delta { font-size: .7rem; margin-left: .2rem; }
+        .delta.positive { color: #3fb950; }
+        .delta.negative { color: #f85149; }
+        .delta.neutral { color: #8b949e; }
+        
+        /* Table view */
+        .table-container {
+            overflow-x: auto;
+            background: #161b22;
+            border: 1px solid #21262d;
+            border-radius: 6px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: .82rem;
+        }
+        th, td {
+            padding: .6rem .8rem;
+            text-align: left;
+            border-bottom: 1px solid #21262d;
+        }
+        th {
+            background: #21262d;
+            color: #e6edf3;
+            font-weight: 600;
+            cursor: pointer;
+            user-select: none;
+        }
+        th:hover { background: #30363d; }
+        th.sorted-asc::after { content: ' ▲'; }
+        th.sorted-desc::after { content: ' ▼'; }
+        tr:hover { background: #21262d; }
+        
+        /* Empty state */
+        #empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: #484f58;
+        }
+        #empty-state p { margin-bottom: 1rem; }
+        
+        /* Message */
+        .message {
+            padding: .8rem 1rem;
+            border-radius: 6px;
+            margin-bottom: 1rem;
+            font-size: .85rem;
+        }
+        .message.success { background: #1f2d1f; color: #3fb950; border: 1px solid #238636; }
+        .message.error { background: #3d1f1f; color: #f85149; border: 1px solid #da3633; }
+        .message.info { background: #1f2530; color: #58a6ff; border: 1px solid #1f6feb; }
+        
+        /* Paste URLs area */
+        textarea {
+            width: 100%;
+            min-height: 150px;
+            background: #0d1117;
+            color: #e6edf3;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            padding: .8rem;
+            font-family: monospace;
+            font-size: .85rem;
+            resize: vertical;
+        }
+        textarea:focus { outline: none; border-color: #1f6feb; }
+        
+        /* Footer */
+        footer {
+            padding: .8rem 1.5rem;
+            border-top: 1px solid #21262d;
+            font-size: .78rem;
+            color: #484f58;
+            margin-top: 2rem;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>🔭 Reddit Lens — Gem Analyzer</h1>
+        <button id="fetch-btn" class="hbtn" onclick="app.fetchPosts()">Fetch Posts</button>
+        <button id="analyze-btn" class="hbtn" onclick="app.analyzePosts()">Analyze / Score</button>
+        <button id="export-btn" class="hbtn" onclick="app.exportCSV()">Export CSV</button>
+        <span id="status">Ready</span>
+    </header>
+    
+    <div class="tabs">
+        <button class="tab-btn active" data-tab="live-feed">Live Feed</button>
+        <button class="tab-btn" data-tab="paste-urls">Paste URLs</button>
+    </div>
+    
+    <!-- Live Feed Tab -->
+    <div id="live-feed" class="tab-content active">
+        <div class="controls-panel">
+            <label>
+                Subreddits:
+                <input type="text" id="subreddits-input" placeholder="all,technology,gaming (leave blank for all)">
+            </label>
+            <label>
+                Mode:
+                <select id="priority-mode">
+                    <option value="balanced">Balanced</option>
+                    <option value="spicy">Spicy (Controversy)</option>
+                    <option value="thoughtful">Thought-Provoking</option>
+                    <option value="wtf">WTF (Comment Ratio)</option>
+                </select>
+            </label>
+            <label>
+                Auto-refresh:
+                <select id="auto-refresh" onchange="app.toggleAutoRefresh()">
+                    <option value="0">Off</option>
+                    <option value="60">1 min</option>
+                    <option value="120">2 min</option>
+                    <option value="300">5 min</option>
+                    <option value="600">10 min</option>
+                </select>
+            </label>
+        </div>
+        
+        <div id="message-area"></div>
+        
+        <div id="results-grid">
+            <div id="empty-state">
+                <p>No posts loaded yet.</p>
+                <p>Click "Fetch Posts" to load from Reddit, or paste URLs in the other tab.</p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Paste URLs Tab -->
+    <div id="paste-urls" class="tab-content">
+        <div class="controls-panel">
+            <label>
+                Mode:
+                <select id="priority-mode-paste">
+                    <option value="balanced">Balanced</option>
+                    <option value="spicy">Spicy (Controversy)</option>
+                    <option value="thoughtful">Thought-Provoking</option>
+                    <option value="wtf">WTF (Comment Ratio)</option>
+                </select>
+            </label>
+        </div>
+        
+        <div style="margin-bottom: 1rem;">
+            <label style="font-size: .82rem; color: #8b949e; display: block; margin-bottom: .5rem;">
+                Paste Reddit post URLs (one per line or space-separated):
+            </label>
+            <textarea id="url-input" placeholder="https://www.reddit.com/r/technology/comments/abc123/post-title
+https://reddit.com/r/gaming/comments/xyz789/another-post
+Just paste messy text with URLs and we'll extract them!"></textarea>
+        </div>
+        
+        <button class="hbtn" id="fetch-urls-btn" style="background: #238636;" onclick="app.fetchUrls()">Fetch Posts</button>
+    </div>
+    
+    <footer>
+        <span id="posts-count">0 posts loaded</span> | 
+        <span id="last-updated">Last updated: Never</span> |
+        Port: <span id="port-display">5001</span>
+    </footer>
+    
+    <script>
+        // Configuration - matches reddit-lens default port
+        const PORT = 5001;
+        const BASE_URL = `http://localhost:${PORT}`;
+        
+        const app = {
+            posts: [],
+            previousPosts: new Map(),
+            sortColumn: 'gem_score',
+            sortDirection: 'desc',
+            autoRefreshTimer: null,
+            
+            init() {
+                this.setupTabs();
+                this.setupModeChange();
+                this.checkConnection();
+                document.getElementById('port-display').textContent = PORT;
+            },
+            
+            setupTabs() {
+                document.querySelectorAll('.tab-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                        btn.classList.add('active');
+                        document.getElementById(btn.dataset.tab).classList.add('active');
+                    });
+                });
+                
+                // Sync priority mode between tabs
+                document.getElementById('priority-mode').addEventListener('change', (e) => {
+                    document.getElementById('priority-mode-paste').value = e.target.value;
+                });
+                document.getElementById('priority-mode-paste').addEventListener('change', (e) => {
+                    document.getElementById('priority-mode').value = e.target.value;
+                });
+            },
+            
+            setupModeChange() {
+                document.getElementById('priority-mode').addEventListener('change', () => {
+                    if (this.posts.length > 0) {
+                        this.calculateScores();
+                        this.render();
+                    }
+                });
+            },
+            
+            async checkConnection() {
+                try {
+                    const response = await fetch(`${BASE_URL}/`);
+                    if (response.ok) {
+                        document.getElementById('status').textContent = `Connected (Port ${PORT})`;
+                        document.getElementById('status').style.color = '#3fb950';
+                    } else {
+                        throw new Error('Server responded with error');
+                    }
+                } catch (error) {
+                    document.getElementById('status').textContent = 'Disconnected';
+                    document.getElementById('status').style.color = '#f85149';
+                    this.showMessage('error', `Cannot connect to server at ${BASE_URL}. Make sure reddit-lens is running.`);
+                }
+            },
+            
+            async fetchPosts() {
+                const btn = document.getElementById('fetch-btn');
+                const subreddits = document.getElementById('subreddits-input').value.trim();
+                
+                btn.disabled = true;
+                btn.textContent = 'Fetching...';
+                this.showMessage('info', 'Fetching posts from Reddit...');
+                
+                try {
+                    // Store current posts for delta tracking
+                    this.posts.forEach(p => {
+                        this.previousPosts.set(p.id, {
+                            score: p.score,
+                            num_comments: p.num_comments,
+                            gem_score: p.gem_score
+                        });
+                    });
+                    
+                    // Call the existing /fetch endpoint
+                    const payload = subreddits 
+                        ? { subreddits: subreddits.split(',').map(s => s.trim()).filter(Boolean) }
+                        : {};
+                    
+                    const response = await fetch(`${BASE_URL}/fetch`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    
+                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                    
+                    const data = await response.json();
+                    
+                    if (data.status === 'ok') {
+                        this.posts = data.posts || [];
+                        this.calculateScores();
+                        this.render();
+                        
+                        const msg = `Fetched ${data.fetched} posts (${data.new} new, ${data.skipped} skipped)`;
+                        this.showMessage('success', msg);
+                        document.getElementById('posts-count').textContent = `${this.posts.length} posts loaded`;
+                        document.getElementById('last-updated').textContent = `Last updated: ${new Date().toLocaleTimeString()}`;
+                    } else {
+                        throw new Error(data.message || 'Unknown error');
+                    }
+                } catch (error) {
+                    this.showMessage('error', `Error fetching: ${error.message}`);
+                } finally {
+                    btn.disabled = false;
+                    btn.textContent = 'Fetch Posts';
+                }
+            },
+            
+            async analyzePosts() {
+                const btn = document.getElementById('analyze-btn');
+                const subreddits = document.getElementById('subreddits-input').value.trim();
+                
+                btn.disabled = true;
+                btn.textContent = 'Analyzing...';
+                
+                try {
+                    // Get posts from the /posts endpoint (if available via patch)
+                    const url = subreddits
+                        ? `${BASE_URL}/posts?subreddits=${encodeURIComponent(subreddits)}`
+                        : `${BASE_URL}/posts`;
+                    
+                    const response = await fetch(url);
+                    
+                    if (response.ok) {
+                        const data = await response.json();
+                        if (data.success && data.posts) {
+                            this.posts = data.posts;
+                            // Recalculate with current mode
+                            this.calculateScores();
+                            this.render();
+                            this.showMessage('success', `Analyzed ${this.posts.length} posts`);
+                            return;
+                        }
+                    }
+                    
+                    // Fallback: re-score existing posts
+                    if (this.posts.length === 0) {
+                        this.showMessage('info', 'No posts to analyze. Click "Fetch Posts" first.');
+                    } else {
+                        this.calculateScores();
+                        this.render();
+                        this.showMessage('success', `Re-scored ${this.posts.length} posts with current mode`);
+                    }
+                } catch (error) {
+                    // Fallback to local scoring
+                    if (this.posts.length > 0) {
+                        this.calculateScores();
+                        this.render();
+                        this.showMessage('success', `Scored ${this.posts.length} posts (local)`);
+                    } else {
+                        this.showMessage('error', `No posts loaded. Fetch first.`);
+                    }
+                } finally {
+                    btn.disabled = false;
+                    btn.textContent = 'Analyze / Score';
+                }
+            },
+            
+            calculateScores() {
+                const mode = document.getElementById('priority-mode').value;
+                const weights = this.getWeights(mode);
+                
+                this.posts.forEach(post => {
+                    const scores = this.computeScoreComponents(post);
+                    
+                    post.controversy = scores.controversy;
+                    post.velocity = scores.velocity;
+                    post.comment_ratio = scores.comment_ratio;
+                    post.engagement = scores.engagement;
+                    
+                    // Apply mode weights
+                    post.gem_score = (
+                        scores.controversy * weights.controversy +
+                        scores.velocity * weights.velocity +
+                        scores.comment_ratio * weights.cr +
+                        scores.engagement * weights.engagement
+                    );
+                    
+                    // Calculate deltas
+                    const prev = this.previousPosts.get(post.id);
+                    if (prev) {
+                        post.score_delta = (post.score || 0) - prev.score;
+                        post.comments_delta = (post.num_comments || 0) - prev.num_comments;
+                        post.gem_score_delta = post.gem_score - (prev.gem_score || 0);
+                    } else {
+                        post.score_delta = 0;
+                        post.comments_delta = 0;
+                        post.gem_score_delta = 0;
+                    }
+                });
+                
+                // Sort by gem score
+                this.posts.sort((a, b) => b.gem_score - a.gem_score);
+            },
+            
+            getWeights(mode) {
+                switch (mode) {
+                    case 'spicy':
+                        return { controversy: 0.4, velocity: 0.2, cr: 0.2, engagement: 0.2 };
+                    case 'thoughtful':
+                        return { controversy: 0.15, velocity: 0.2, cr: 0.45, engagement: 0.2 };
+                    case 'wtf':
+                        return { controversy: 0.15, velocity: 0.15, cr: 0.55, engagement: 0.15 };
+                    default: // balanced
+                        return { controversy: 0.25, velocity: 0.25, cr: 0.25, engagement: 0.25 };
+                }
+            },
+            
+            computeScoreComponents(post) {
+                const score = post.score || 0;
+                const comments = post.num_comments || 0;
+                const upvote_ratio = post.upvote_ratio || 0.5;
+                const created_utc = post.created_utc || Date.now() / 1000;
+                
+                const now = Date.now() / 1000;
+                const age_seconds = Math.max(now - created_utc, 60);
+                const age_hours = age_seconds / 3600;
+                
+                // Controversy: (1 − upvote_ratio) × 2 × log10(score+1) × 50
+                const controversy = (1 - upvote_ratio) * 2 * Math.log10(score + 1) * 50;
+                
+                // Engagement: log10(score + comments×3 + 1) × 20
+                const engagement = Math.log10(score + comments * 3 + 1) * 20;
+                
+                // Velocity: Engagement / log10(age_hours+2) × 5
+                const velocity = engagement / Math.log10(age_hours + 2) * 5;
+                
+                // Comment Ratio: min(comments / max(score,5) × 30, 100)
+                const comment_ratio = Math.min((comments / Math.max(score, 5)) * 30, 100);
+                
+                return { controversy, velocity, comment_ratio, engagement };
+            },
+            
+            render() {
+                const grid = document.getElementById('results-grid');
+                
+                if (this.posts.length === 0) {
+                    grid.innerHTML = `
+                        <div id="empty-state">
+                            <p>No posts loaded yet.</p>
+                            <p>Click "Fetch Posts" to load from Reddit, or paste URLs in the other tab.</p>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                grid.innerHTML = this.posts.map((post, index) => {
+                    const permalink = post.permalink || '';
+                    const url = post.url || '';
+                    const selftext = post.selftext || '';
+                    
+                    const deltaClass = d => d > 0 ? 'positive' : d < 0 ? 'negative' : 'neutral';
+                    const deltaSign = d => d > 0 ? '+' : '';
+                    
+                    return `
+                        <div class="card">
+                            <a href="${this.makeFullUrl(permalink)}" target="_blank" class="card-title" title="${this.escapeHtml(post.title || '')}">
+                                ${this.escapeHtml((post.title || '').substring(0, 150))}${(post.title || '').length > 150 ? '...' : ''}
+                            </a>
+                            <div class="card-meta">
+                                <span class="badge">r/${this.escapeHtml(post.subreddit || '?')}</span>
+                                <span class="badge">u/${this.escapeHtml(post.author || '[deleted]')}</span>
+                                <span class="badge">${this.formatAge(post.created_utc)}</span>
+                            </div>
+                            <div class="card-meta">
+                                <span>⬆️ ${this.formatNumber(post.score || 0)}</span>
+                                <span>💬 ${this.formatNumber(post.num_comments || 0)}</span>
+                                <span>⬆️ ${(post.upvote_ratio * 100 || 0).toFixed(0)}%</span>
+                            </div>
+                            ${selftext ? `<div class="card-preview">${this.escapeHtml(selftext)}</div>` : ''}
+                            <div class="score-display">
+                                <div class="score-item">
+                                    <span class="score-label">Gem</span>
+                                    <span class="score-value highlight">${post.gem_score.toFixed(1)}${post.gem_score_delta !== 0 ? `<span class="delta ${deltaClass(post.gem_score_delta)}">${deltaSign(post.gem_score_delta)}${post.gem_score_delta.toFixed(1)}</span>` : ''}</span>
+                                </div>
+                                <div class="score-item">
+                                    <span class="score-label">Controversy</span>
+                                    <span class="score-value">${post.controversy.toFixed(1)}</span>
+                                </div>
+                                <div class="score-item">
+                                    <span class="score-label">Velocity</span>
+                                    <span class="score-value">${post.velocity.toFixed(1)}</span>
+                                </div>
+                                <div class="score-item">
+                                    <span class="score-label">Comments</span>
+                                    <span class="score-value">${post.comment_ratio.toFixed(1)}</span>
+                                </div>
+                                <div class="score-item">
+                                    <span class="score-label">Engagement</span>
+                                    <span class="score-value">${post.engagement.toFixed(1)}</span>
+                                </div>
+                            </div>
+                            <div class="card-links">
+                                <a href="${this.makeFullUrl(permalink)}" target="_blank">View on Reddit</a>
+                                <a href="${this.escapeHtml(url)}" target="_blank" rel="noopener">Link</a>
+                                ${post.score_delta !== 0 || post.comments_delta !== 0 ? `
+                                    <span style="color:#8b949e">Δ Score: ${deltaSign(post.score_delta)}${post.score_delta} | Δ Comments: ${deltaSign(post.comments_delta)}${post.comments_delta}</span>
+                                ` : ''}
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            },
+            
+            async fetchUrls() {
+                const btn = document.getElementById('fetch-urls-btn');
+                const input = document.getElementById('url-input').value;
+                
+                btn.disabled = true;
+                btn.textContent = 'Fetching...';
+                
+                try {
+                    const postIds = this.extractPostIds(input);
+                    
+                    if (postIds.length === 0) {
+                        throw new Error('No valid Reddit post IDs found');
+                    }
+                    
+                    const results = [];
+                    // Fetch in batches using Reddit's public API directly
+                    for (let i = 0; i < postIds.length; i += 25) {
+                        const batch = postIds.slice(i, i + 25);
+                        const idsParam = batch.join(',');
+                        
+                        try {
+                            const response = await fetch(`https://www.reddit.com/api/info.json?id=${idsParam}`);
+                            if (response.ok) {
+                                const data = await response.json();
+                                if (data.data && data.data.children) {
+                                    results.push(...data.data.children.map(c => c.data));
+                                }
+                            }
+                        } catch (e) {
+                            console.warn(`Failed to fetch batch starting at ${batch[0]}:`, e);
+                        }
+                    }
+                    
+                    if (results.length === 0) {
+                        throw new Error('No posts could be fetched');
+                    }
+                    
+                    this.posts = results;
+                    this.calculateScores();
+                    this.render();
+                    
+                    this.showMessage('success', `Fetched ${results.length} posts`);
+                    document.getElementById('posts-count').textContent = `${this.posts.length} posts loaded`;
+                    document.getElementById('last-updated').textContent = `Last updated: ${new Date().toLocaleTimeString()}`;
+                    
+                    // Switch to live feed tab
+                    document.querySelector('[data-tab="live-feed"]').click();
+                } catch (error) {
+                    this.showMessage('error', `Error: ${error.message}`);
+                } finally {
+                    btn.disabled = false;
+                    btn.textContent = 'Fetch Posts';
+                }
+            },
+            
+            extractPostIds(text) {
+                const regex = /(?:reddit\.com\/r\/[\w]+\/comments\/|\/comments\/)([a-z0-9]+)/gi;
+                const matches = [...text.matchAll(regex)];
+                return [...new Set(matches.map(m => m[1]))];
+            },
+            
+            exportCSV() {
+                if (this.posts.length === 0) {
+                    this.showMessage('error', 'No posts to export');
+                    return;
+                }
+                
+                const headers = ['Subreddit', 'Title', 'Author', 'URL', 'Permalink', 'Score', 'Comments', 'Upvote Ratio', 'Age Hours', 'Controversy', 'Velocity', 'Comment Ratio', 'Engagement', 'Gem Score'];
+                const rows = this.posts.map(post => [
+                    post.subreddit || '',
+                    `"${(post.title || '').replace(/"/g, '""')}"`,
+                    post.author || '[deleted]',
+                    post.url || '',
+                    this.makeFullUrl(post.permalink || ''),
+                    post.score || 0,
+                    post.num_comments || 0,
+                    (post.upvote_ratio * 100 || 0).toFixed(0) + '%',
+                    ((Date.now()/1000 - (post.created_utc || Date.now()/1000)) / 3600).toFixed(2),
+                    post.controversy?.toFixed(2) || '0',
+                    post.velocity?.toFixed(2) || '0',
+                    post.comment_ratio?.toFixed(2) || '0',
+                    post.engagement?.toFixed(2) || '0',
+                    post.gem_score?.toFixed(2) || '0'
+                ]);
+                
+                const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+                const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `reddit_gems_${new Date().toISOString().slice(0, 10)}.csv`;
+                a.click();
+                URL.revokeObjectURL(url);
+                
+                this.showMessage('success', 'CSV exported');
+            },
+            
+            toggleAutoRefresh() {
+                const interval = parseInt(document.getElementById('auto-refresh').value);
+                
+                if (this.autoRefreshTimer) {
+                    clearInterval(this.autoRefreshTimer);
+                    this.autoRefreshTimer = null;
+                }
+                
+                if (interval > 0) {
+                    this.autoRefreshTimer = setInterval(() => this.fetchPosts(), interval * 1000);
+                    this.showMessage('info', `Auto-refresh enabled (${interval / 60} min interval)`);
+                }
+            },
+            
+            showMessage(type, message) {
+                const area = document.getElementById('message-area');
+                const div = document.createElement('div');
+                div.className = `message ${type}`;
+                div.textContent = message;
+                area.insertBefore(div, area.firstChild);
+                
+                setTimeout(() => div.remove(), 5000);
+            },
+            
+            makeFullUrl(path) {
+                if (!path) return '#';
+                if (path.startsWith('http')) return path;
+                return `https://www.reddit.com${path}`;
+            },
+            
+            escapeHtml(text) {
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            },
+            
+            formatNumber(n) {
+                if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
+                if (n >= 1000) return (n / 1000).toFixed(1) + 'k';
+                return n.toString();
+            },
+            
+            formatAge(timestamp) {
+                if (!timestamp) return '?';
+                const hours = (Date.now() / 1000 - timestamp) / 3600;
+                if (hours < 1) return '<1h';
+                if (hours < 24) return Math.round(hours) + 'h';
+                const days = hours / 24;
+                if (days < 7) return Math.round(days) + 'd';
+                const weeks = days / 7;
+                if (weeks < 4) return Math.round(weeks) + 'w';
+                return Math.round(days / 30) + 'mo';
+            }
+        };
+        
+        // Initialize when DOM is ready
+        document.addEventListener('DOMContentLoaded', () => app.init());
+    </script>
+</body>
+</html>
