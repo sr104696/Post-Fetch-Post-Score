@@ -1,0 +1,283 @@
+{
+  "reddit_sources": [
+    {
+      "subreddit": "news",
+      "sort": "hot",
+      "min_score": 50,
+      "nsfw": false,
+      "flair_filter": [],
+      "keyword_blocklist": [],
+      "keyword_allowlist": [],
+      "last_fetched": 1776905957.8901956
+    },
+    {
+      "subreddit": "redditonwiki",
+      "sort": "hot",
+      "min_score": 10,
+      "nsfw": false,
+      "flair_filter": [],
+      "keyword_blocklist": [],
+      "keyword_allowlist": [],
+      "last_fetched": 1776905957.8901956
+    },
+    {
+      "subreddit": "Weddingattireapproval",
+      "sort": "hot",
+      "min_score": 10,
+      "nsfw": false,
+      "flair_filter": [],
+      "keyword_blocklist": [],
+      "keyword_allowlist": [],
+      "last_fetched": 1776905957.8901956
+    },
+    {
+      "subreddit": "BrandNewSentence",
+      "sort": "hot",
+      "min_score": 10,
+      "nsfw": false,
+      "flair_filter": [],
+      "keyword_blocklist": [],
+      "keyword_allowlist": [],
+      "last_fetched": 1776905957.8901956
+    },
+    {
+      "subreddit": "AmItheAsshole",
+      "sort": "hot",
+      "min_score": 10,
+      "nsfw": false,
+      "flair_filter": [],
+      "keyword_blocklist": [],
+      "keyword_allowlist": [],
+      "last_fetched": 1776905957.8901956
+    },
+    {
+      "subreddit": "AmIOverreacting",
+      "sort": "hot",
+      "min_score": 10,
+      "nsfw": false,
+      "flair_filter": [],
+      "keyword_blocklist": [],
+      "keyword_allowlist": [],
+      "last_fetched": 1776905957.8901956
+    },
+    {
+      "subreddit": "CasualConversation",
+      "sort": "hot",
+      "min_score": 10,
+      "nsfw": false,
+      "flair_filter": [],
+      "keyword_blocklist": [],
+      "keyword_allowlist": [],
+      "last_fetched": 1776905957.8901956
+    },
+    {
+      "subreddit": "BestofRedditorUpdates",
+      "sort": "hot",
+      "min_score": 10,
+      "nsfw": false,
+      "flair_filter": [],
+      "keyword_blocklist": [],
+      "keyword_allowlist": [],
+      "last_fetched": 1776905957.8901956
+    },
+    {
+      "subreddit": "MarkNarrations",
+      "sort": "hot",
+      "min_score": 10,
+      "nsfw": false,
+      "flair_filter": [],
+      "keyword_blocklist": [],
+      "keyword_allowlist": [],
+      "last_fetched": 1776905957.8901956
+    },
+    {
+      "subreddit": "AITApod",
+      "sort": "hot",
+      "min_score": 10,
+      "nsfw": false,
+      "flair_filter": [],
+      "keyword_blocklist": [],
+      "keyword_allowlist": [],
+      "last_fetched": 1776905957.8901956
+    },
+    {
+      "subreddit": "WIBTA_AITA",
+      "sort": "hot",
+      "min_score": 10,
+      "nsfw": false,
+      "flair_filter": [],
+      "keyword_blocklist": [],
+      "keyword_allowlist": [],
+      "last_fetched": 1776905957.8901956
+    },
+    {
+      "subreddit": "traumatizeThemBack",
+      "sort": "hot",
+      "min_score": 10,
+      "nsfw": false,
+      "flair_filter": [],
+      "keyword_blocklist": [],
+      "keyword_allowlist": [],
+      "last_fetched": 1776905957.8901956
+    },
+    {
+      "subreddit": "BORUpdates",
+      "sort": "hot",
+      "min_score": 10,
+      "nsfw": false,
+      "flair_filter": [],
+      "keyword_blocklist": [],
+      "keyword_allowlist": [],
+      "last_fetched": 1776905957.8901956
+    },
+    {
+      "subreddit": "AITA_Relationships",
+      "sort": "hot",
+      "min_score": 10,
+      "nsfw": false,
+      "flair_filter": [],
+      "keyword_blocklist": [],
+      "keyword_allowlist": [],
+      "last_fetched": 1776905957.8901956
+    },
+    {
+      "subreddit": "whatdoIdo",
+      "sort": "hot",
+      "min_score": 10,
+      "nsfw": false,
+      "flair_filter": [],
+      "keyword_blocklist": [],
+      "keyword_allowlist": [],
+      "last_fetched": 1776905957.8901956
+    },
+    {
+      "subreddit": "Advice",
+      "sort": "hot",
+      "min_score": 10,
+      "nsfw": false,
+      "flair_filter": [],
+      "keyword_blocklist": [],
+      "keyword_allowlist": [],
+      "last_fetched": 1776905957.8901956
+    },
+    {
+      "subreddit": "offmychest",
+      "sort": "hot",
+      "min_score": 10,
+      "nsfw": false,
+      "flair_filter": [],
+      "keyword_blocklist": [],
+      "keyword_allowlist": [],
+      "last_fetched": 1776905957.8901956
+    },
+    {
+      "subreddit": "TrueOffMyChest",
+      "sort": "hot",
+      "min_score": 10,
+      "nsfw": false,
+      "flair_filter": [],
+      "keyword_blocklist": [],
+      "keyword_allowlist": [],
+      "last_fetched": 1776905957.8901956
+    },
+    {
+      "subreddit": "The10thDentist",
+      "sort": "hot",
+      "min_score": 10,
+      "nsfw": false,
+      "flair_filter": [],
+      "keyword_blocklist": [],
+      "keyword_allowlist": [],
+      "last_fetched": 1776905957.8901956
+    },
+    {
+      "subreddit": "legaladvice",
+      "sort": "hot",
+      "min_score": 10,
+      "nsfw": false,
+      "flair_filter": [],
+      "keyword_blocklist": [],
+      "keyword_allowlist": [],
+      "last_fetched": 1776905957.8901956
+    },
+    {
+      "subreddit": "TwoHotTakes",
+      "sort": "hot",
+      "min_score": 10,
+      "nsfw": false,
+      "flair_filter": [],
+      "keyword_blocklist": [],
+      "keyword_allowlist": [],
+      "last_fetched": 1776905957.8901956
+    },
+    {
+      "subreddit": "UofT",
+      "sort": "hot",
+      "min_score": 10,
+      "nsfw": false,
+      "flair_filter": [],
+      "keyword_blocklist": [],
+      "keyword_allowlist": [],
+      "last_fetched": 1776905957.8901956
+    },
+    {
+      "subreddit": "self",
+      "sort": "hot",
+      "min_score": 10,
+      "nsfw": false,
+      "flair_filter": [],
+      "keyword_blocklist": [],
+      "keyword_allowlist": [],
+      "last_fetched": 1776905957.8901956
+    },
+    {
+      "subreddit": "OhNoConsequences",
+      "sort": "hot",
+      "min_score": 10,
+      "nsfw": false,
+      "flair_filter": [],
+      "keyword_blocklist": [],
+      "keyword_allowlist": [],
+      "last_fetched": 1776905957.8901956
+    },
+    {
+      "subreddit": "AITAH",
+      "sort": "hot",
+      "min_score": 10,
+      "nsfw": false,
+      "flair_filter": [],
+      "keyword_blocklist": [],
+      "keyword_allowlist": [],
+      "last_fetched": 1776905957.8901956
+    },
+    {
+      "subreddit": "hygiene",
+      "sort": "hot",
+      "min_score": 10,
+      "nsfw": false,
+      "flair_filter": [],
+      "keyword_blocklist": [],
+      "keyword_allowlist": [],
+      "last_fetched": 1776905957.8901956
+    }
+  ],
+  "limit_per_sub": 25,
+  "fetch_cooldown_seconds": 0,
+  "db_path": "reddit_lens.db",
+  "error_log": "error.log",
+  "server_host": "127.0.0.1",
+  "server_port_start": 5001,
+  "server_port_tries": 20,
+  "max_display": 200,
+  "max_screenshots": 50,
+  "email_export": {
+    "enabled": true,
+    "smtp_server": "smtp.gmail.com",
+    "smtp_port": 587,
+    "smtp_username": "roseybard1046@gmail.com",
+    "smtp_password": "",
+    "from_email": "roseybard1046@gmail.com",
+    "to_email": "roseybard1046@gmail.com",
+    "smtp_use_tls": true
+  }
+}

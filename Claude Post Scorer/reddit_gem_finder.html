@@ -1,0 +1,1155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Reddit Gem Finder</title>
+<style>
+:root {
+  --bg: #0b0c0f;
+  --panel: #12141a;
+  --panel-2: #171a21;
+  --border: #232734;
+  --text: #d7dbe7;
+  --muted: #8a90a2;
+  --accent: #7aa2f7;
+  --warn: #fbbf24;
+  --ok: #22c55e;
+  --danger: #ef4444;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+  background: var(--bg); color: var(--text);
+  font-family: Inter, system-ui, -apple-system, sans-serif;
+  display: flex; flex-direction: column;
+}
+header {
+  padding: 12px 16px; border-bottom: 1px solid var(--border);
+  background: linear-gradient(180deg, #0f1117, #0b0c0f);
+  position: sticky; top: 0; z-index: 20;
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+}
+h1 { font-size: 15px; font-weight: 700; white-space: nowrap; }
+main { padding: 14px 16px; max-width: 1500px; margin: 0 auto; width: 100%; flex: 1; }
+
+/* Proxy status banner */
+.proxy-banner {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 10px;
+  padding: 8px 12px; border-radius: 8px; font-size: 12px;
+  border: 1px solid var(--border); background: var(--panel);
+}
+.proxy-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.proxy-dot.ok   { background: var(--ok);   box-shadow: 0 0 6px var(--ok); }
+.proxy-dot.warn { background: var(--warn); box-shadow: 0 0 6px var(--warn); }
+.proxy-dot.err  { background: var(--danger); }
+.proxy-banner code { font-family: var(--mono); font-size: 11px; background: #0d111a; padding: 1px 5px; border-radius: 3px; }
+
+/* Tabs */
+.tabs { display: flex; gap: 0; margin-bottom: 12px; border-bottom: 1px solid var(--border); }
+.tab-btn {
+  padding: 8px 18px; font-size: 13px; font-weight: 500; cursor: pointer;
+  background: none; border: none; color: var(--muted);
+  border-bottom: 2px solid transparent; margin-bottom: -1px; transition: color .15s, border-color .15s;
+}
+.tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+.tab-btn:hover:not(.active) { color: var(--text); }
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+
+/* Feed config */
+.feed-config {
+  background: var(--panel); border: 1px solid var(--border);
+  padding: 12px; border-radius: 10px; margin-bottom: 10px;
+  display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end;
+}
+.feed-config label { font-size: 11px; color: var(--muted); display: block; margin-bottom: 4px; }
+.field-group { display: flex; flex-direction: column; }
+.field-group input[type="text"] { width: 320px; }
+.feed-actions { display: flex; gap: 8px; align-items: flex-end; margin-left: auto; }
+
+.countdown-ring {
+  display: none; align-items: center; justify-content: center;
+  width: 34px; height: 34px; border-radius: 50%;
+  background: conic-gradient(var(--accent) calc(var(--pct, 100) * 1%), #1a1f2e 0);
+  font-size: 10px; color: var(--accent); font-weight: 700; font-family: var(--mono);
+  flex-shrink: 0;
+}
+.countdown-ring.show { display: inline-flex; }
+
+/* Controls */
+.controls {
+  display: flex; gap: 10px; flex-wrap: wrap; align-items: center;
+  background: var(--panel); border: 1px solid var(--border);
+  padding: 12px; border-radius: 10px; margin-bottom: 10px;
+}
+.dropzone {
+  flex: 1 1 280px; min-height: 44px; display: flex; align-items: center; gap: 10px;
+  padding: 8px 12px; border: 1.5px dashed #2a3042; border-radius: 8px; background: var(--panel-2);
+  cursor: pointer; transition: border-color .15s, background .15s;
+}
+.dropzone:hover, .dropzone.dragover { border-color: var(--accent); background: #101522; }
+.dropzone .hint { color: var(--muted); font-size: 13px; }
+
+.paste-area {
+  display: flex; gap: 8px; align-items: flex-start;
+  background: var(--panel); border: 1px solid var(--border);
+  padding: 12px; border-radius: 10px; margin-bottom: 10px;
+}
+.paste-area textarea {
+  flex: 1; min-height: 70px; resize: vertical;
+  background: #0e1118; color: var(--text); border: 1px solid var(--border);
+  border-radius: 8px; padding: 8px; font-family: var(--mono); font-size: 12px; line-height: 1.5;
+}
+.paste-area textarea::placeholder { color: #4a5270; }
+.paste-btns { display: flex; flex-direction: column; gap: 6px; }
+
+/* Buttons/inputs */
+button, select, input[type="text"], input[type="number"] {
+  background: #0e1118; color: var(--text); border: 1px solid var(--border);
+  padding: 7px 10px; border-radius: 8px; font-size: 13px;
+}
+button { cursor: pointer; transition: background .15s, opacity .15s; }
+button:disabled { opacity: .4; cursor: not-allowed; }
+button.primary { border-color: #2b3a5e; background: #111a2e; }
+button.primary:hover:not(:disabled) { background: #13203a; }
+button.danger { border-color: #5a1f1f; background: #1f0d0d; color: var(--danger); }
+button.danger:hover:not(:disabled) { background: #2a1010; }
+.hl { font-size: 12px; color: var(--muted); }
+.badge {
+  display: inline-block; padding: 2px 7px; border-radius: 6px;
+  background: #1a1f2b; border: 1px solid var(--border); color: #aab2c8; font-size: 11px;
+}
+
+.filter-bar { margin-bottom: 10px; display: flex; gap: 8px; align-items: center; }
+.filter-bar input[type="text"] { flex: 1; }
+
+.status-bar {
+  margin-bottom: 8px; padding: 6px 10px; border-radius: 8px;
+  background: #0e111a; border: 1px solid #1b2032;
+  font-size: 12px; color: var(--muted); display: none; align-items: center; gap: 8px;
+}
+.status-bar.visible { display: flex; }
+.spinner {
+  width: 13px; height: 13px; border: 2px solid #1e2540;
+  border-top-color: var(--accent); border-radius: 50%; animation: spin .7s linear infinite; flex-shrink: 0;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.progress { flex: 1; height: 3px; background: #1a1f2b; border-radius: 2px; overflow: hidden; }
+.progress-fill { height: 100%; background: linear-gradient(90deg, var(--accent), #a78bfa); border-radius: 2px; transition: width .3s; }
+
+/* Table */
+.table-wrap { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+.table-scroll { max-height: 62vh; overflow: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+thead th {
+  position: sticky; top: 0; background: #0f131c; border-bottom: 1px solid var(--border);
+  text-align: left; padding: 7px 10px; font-weight: 600; color: #b7bfd6; white-space: nowrap;
+  z-index: 5; cursor: pointer; user-select: none;
+}
+thead th:hover { background: #111621; }
+thead th.sorted { color: var(--accent); }
+thead th .arr { margin-left: 3px; color: var(--muted); font-size: 10px; }
+tbody td { padding: 5px 10px; border-bottom: 1px solid #171b26; vertical-align: middle; }
+tbody tr:hover { background: #0f1420; }
+tbody tr:last-child td { border-bottom: none; }
+th.num, td.num { text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; }
+td.title-cell { max-width: 400px; }
+td.title-cell a { color: #cfe1ff; text-decoration: none; display: block; line-height: 1.4; }
+td.title-cell a:hover { text-decoration: underline; }
+.sub-badge { margin-left: 5px; font-size: 10px; padding: 1px 5px; border-radius: 4px; background: #111827; border: 1px solid #232734; color: #8a90a2; white-space: nowrap; }
+.src-tag { margin-left: 4px; font-size: 10px; padding: 1px 5px; border-radius: 4px; font-family: var(--mono); white-space: nowrap; }
+.src-tag.ok   { background: #0d1f0d; border: 1px solid #1f3a1f; color: var(--ok); }
+.src-tag.warn { background: #1f1a0d; border: 1px solid #3a2e1f; color: var(--warn); }
+.src-tag.err  { background: #1a0d0d; border: 1px solid #3a1f1f; color: var(--danger); }
+.delta-up   { color: var(--ok);   font-size: 10px; }
+.delta-down { color: var(--danger); font-size: 10px; }
+.delta-zero { color: var(--muted); font-size: 10px; }
+.age-new { color: var(--ok); }
+.age-mid { color: var(--warn); }
+.age-old { color: var(--muted); }
+
+.score-bar { display: inline-block; width: 50px; height: 5px; background: #1a1f2b; border-radius: 3px; vertical-align: middle; margin-left: 4px; overflow: hidden; }
+.score-bar-fill { height: 100%; border-radius: 3px; background: linear-gradient(90deg, var(--accent), #a78bfa); transition: width .4s; }
+
+.empty { padding: 40px 20px; text-align: center; color: var(--muted); }
+.empty .ico { font-size: 36px; margin-bottom: 10px; }
+
+.toast-container { position: fixed; top: 12px; right: 12px; display: flex; flex-direction: column; gap: 8px; z-index: 1000; }
+.toast {
+  background: #0e1422; border: 1px solid #243049; color: var(--text);
+  padding: 10px 14px; border-radius: 8px; min-width: 240px; max-width: 400px;
+  box-shadow: 0 6px 24px rgba(0,0,0,.35); font-size: 13px;
+  animation: slideIn .2s ease; line-height: 1.4;
+}
+@keyframes slideIn { from { opacity:0; transform:translateX(20px); } to { opacity:1; transform:none; } }
+.toast.ok   { border-color: #1f5132; }
+.toast.err  { border-color: #5a1f28; }
+.toast.warn { border-color: #5a3a1f; }
+
+details.scoring { margin-bottom: 10px; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 8px 12px; }
+details.scoring summary { cursor: pointer; color: var(--muted); font-size: 12.5px; }
+.scoring ul { margin: 8px 0 4px 18px; line-height: 1.8; font-size: 12px; color: #c7cde0; }
+.scoring code { font-family: var(--mono); font-size: 11px; background: #0d111a; padding: 1px 4px; border-radius: 3px; border: 1px solid #1b2130; }
+
+footer { padding: 10px; text-align: center; color: var(--muted); font-size: 11px; border-top: 1px solid var(--border); }
+
+@media (max-width: 1000px) { thead th:nth-child(n+9), tbody td:nth-child(n+9) { display: none; } }
+@media (max-width: 700px)  { thead th:nth-child(n+5), tbody td:nth-child(n+5) { display: none; } }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Reddit Gem Finder ✦</h1>
+  <span class="badge" id="rowCount" style="display:none"></span>
+  <div style="margin-left:auto; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+    <label class="hl">Priority</label>
+    <select id="priority">
+      <option>Balanced</option>
+      <option>Spicy</option>
+      <option>Thought-Provoking</option>
+      <option>WTF</option>
+    </select>
+    <button id="exportBtn" class="primary" disabled>Export CSV</button>
+    <button id="resetBtn" disabled>Clear All</button>
+  </div>
+</header>
+
+<main>
+
+<!-- Proxy health banner -->
+<div class="proxy-banner" id="proxyBanner">
+  <div class="proxy-dot" id="proxyDot"></div>
+  <span id="proxyMsg">Checking proxy…</span>
+</div>
+
+<div class="tabs">
+  <button class="tab-btn active" data-tab="feed">⚡ Live Feed</button>
+  <button class="tab-btn" data-tab="urls">🔗 Paste URLs</button>
+</div>
+
+<!-- ═══ LIVE FEED TAB ═══ -->
+<div class="tab-panel active" id="tab-feed">
+
+  <div class="feed-config">
+    <div class="field-group">
+      <label>Subreddits (comma-separated)</label>
+      <input type="text" id="subInput" value="AskReddit, worldnews, tifu, technology" />
+    </div>
+    <div class="field-group">
+      <label>Posts per sub</label>
+      <select id="postsPerSub"><option value="25">25</option><option value="50" selected>50</option><option value="100">100</option></select>
+    </div>
+    <div class="field-group">
+      <label>Max age</label>
+      <select id="maxAge"><option value="1">1h</option><option value="2">2h</option><option value="6" selected>6h</option><option value="12">12h</option><option value="24">24h</option><option value="0">All</option></select>
+    </div>
+    <div class="field-group">
+      <label>Auto-refresh</label>
+      <select id="refreshInterval"><option value="0">Off</option><option value="60">1 min</option><option value="120" selected>2 min</option><option value="300">5 min</option><option value="600">10 min</option></select>
+    </div>
+    <div class="feed-actions">
+      <button id="fetchFeedBtn" class="primary">▶ Fetch Now</button>
+      <button id="stopFeedBtn" class="danger" disabled>■ Stop</button>
+      <div class="countdown-ring" id="countdownRing"><span id="countdownNum">—</span></div>
+    </div>
+  </div>
+
+  <div class="status-bar" id="feedStatus">
+    <div class="spinner"></div>
+    <span id="feedStatusText">Fetching…</span>
+    <div class="progress"><div class="progress-fill" id="feedProgress" style="width:0%"></div></div>
+  </div>
+
+  <div class="filter-bar">
+    <input type="text" id="feedSearch" placeholder="Filter by title or subreddit…" />
+    <label class="hl" style="white-space:nowrap">Min Gem</label>
+    <input type="number" id="minGem" min="0" max="100" value="0" style="width:60px" />
+  </div>
+
+  <div class="table-wrap">
+    <div id="feedEmpty" class="empty">
+      <div class="ico">⚡</div>
+      <div>Enter subreddits and click <strong>Fetch Now</strong></div>
+      <div style="font-size:12px; margin-top:6px;">Fetches via local proxy — run <code style="font-family:var(--mono); background:#0d111a; padding:1px 4px; border-radius:3px; font-size:11px;">python server.py</code> first</div>
+    </div>
+    <div class="table-scroll" id="feedScroll" style="display:none">
+      <table>
+        <thead><tr>
+          <th class="num" style="width:32px">#</th>
+          <th>Title</th>
+          <th class="num" data-col="ups" title="Upvotes">▲</th>
+          <th class="num" data-col="ratioDisp" title="Upvote ratio">Vote%</th>
+          <th class="num" data-col="comments" title="Comments">💬</th>
+          <th class="num" data-col="ageHours" title="Age">Age</th>
+          <th class="num" data-col="deltaScore" title="Score change since last refresh">Δ▲</th>
+          <th class="num" data-col="deltaComments" title="Comment change since last refresh">Δ💬</th>
+          <th class="num" data-col="controversy" title="Controversy">Cont</th>
+          <th class="num" data-col="velocity" title="Velocity">Vel</th>
+          <th class="num" data-col="commentRatio" title="Comment Ratio">CR</th>
+          <th class="num" data-col="gemScore" title="Gem Score">Gem ✦</th>
+        </tr></thead>
+        <tbody id="feedTbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<!-- ═══ URL PASTE TAB ═══ -->
+<div class="tab-panel" id="tab-urls">
+
+  <div class="controls">
+    <div id="dropzone" class="dropzone" tabindex="0" role="button">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#6b7aa5" stroke-width="1.5">
+        <path d="M12 16V8m0 0l-3.5 3.5M12 8l3.5 3.5"/>
+        <path d="M20 16.5a3.5 3.5 0 01-6.96.5H10.96A3.5 3.5 0 114 13v-.3"/>
+      </svg>
+      <div class="hint"><strong>Drop a file</strong> (.txt .md .csv .json) or click to browse</div>
+      <input id="fileInput" type="file" accept=".md,.json,.csv,.txt" hidden />
+    </div>
+  </div>
+
+  <div class="paste-area">
+    <textarea id="pasteInput" placeholder="Paste Reddit URLs — one per line, comma-separated, or messy text is fine&#10;&#10;https://www.reddit.com/r/AskReddit/comments/abc123/...&#10;https://redd.it/xyz789&#10;r/news/comments/def456/..."></textarea>
+    <div class="paste-btns">
+      <button id="parsePasteBtn" class="primary">▶ Fetch &amp; Score</button>
+      <button id="clearPasteBtn">Clear</button>
+    </div>
+  </div>
+
+  <div class="status-bar" id="urlStatus">
+    <div class="spinner"></div>
+    <span id="urlStatusText">Fetching…</span>
+    <div class="progress"><div class="progress-fill" id="urlProgress" style="width:0%"></div></div>
+  </div>
+
+  <div class="filter-bar">
+    <input type="text" id="urlSearch" placeholder="Filter by title or subreddit…" />
+  </div>
+
+  <div class="table-wrap">
+    <div id="urlEmpty" class="empty">
+      <div class="ico">🔗</div>
+      <div>Paste Reddit URLs above or drop a file</div>
+    </div>
+    <div class="table-scroll" id="urlScroll" style="display:none">
+      <table>
+        <thead><tr>
+          <th class="num" style="width:32px">#</th>
+          <th>Title</th>
+          <th class="num" data-col="ups">▲</th>
+          <th class="num" data-col="ratioDisp">Vote%</th>
+          <th class="num" data-col="comments">💬</th>
+          <th class="num" data-col="ageHours">Age</th>
+          <th class="num" data-col="controversy">Cont</th>
+          <th class="num" data-col="velocity">Vel</th>
+          <th class="num" data-col="commentRatio">CR</th>
+          <th class="num" data-col="engagement">Eng</th>
+          <th class="num" data-col="gemScore">Gem ✦</th>
+        </tr></thead>
+        <tbody id="urlTbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<details class="scoring" style="margin-top:10px">
+  <summary>Scoring formulas &amp; how data is fetched</summary>
+  <ul>
+    <li><strong>Data:</strong> All Reddit fetches go through your local proxy (<code>python server.py</code>) on port 8000. This adds a real browser User-Agent so Reddit doesn't block the request. Without the proxy, Reddit returns CORS errors or 403s.</li>
+    <li><strong>Live Feed:</strong> Hits <code>/r/sub/new.json?limit=N</code> for each subreddit in parallel, then scores + merges results. Session snapshots track Δ changes between refreshes.</li>
+    <li><strong>URL tab:</strong> Extracts post IDs from your URLs, batches them into groups of 50, fetches all batches in parallel via <code>/api/info.json</code>.</li>
+    <li><strong>Controversy</strong> = <code>(1 − upvote_ratio) × 2 × log10(score+1) × 50</code></li>
+    <li><strong>Velocity</strong> = <code>Engagement / log10(ageHours+2) × 5</code>, boosted by Δ data when available</li>
+    <li><strong>CommentRatio</strong> = <code>min(comments / max(score,5) × 30, 100)</code></li>
+    <li><strong>Engagement</strong> = <code>log10(score + comments×3 + 1) × 20</code></li>
+    <li><strong>Gem</strong> = weighted sum, weights controlled by Priority selector</li>
+  </ul>
+</details>
+
+</main>
+
+<footer>Runs entirely locally — no data leaves your machine</footer>
+<div class="toast-container" id="toasts"></div>
+
+<script>
+(() => {
+'use strict';
+
+// ─── Config ───────────────────────────────────────────────────────────────
+const PROXY       = 'http://localhost:8000/proxy/';
+const SNAP_KEY    = 'gemfinder_snaps_v3';
+const BATCH_SIZE  = 50;   // IDs per /api/info.json request
+const CONCURRENCY = 4;    // parallel proxy requests
+
+const WEIGHTS = {
+  'Balanced':          { c:0.30, v:0.30, r:0.25, e:0.15 },
+  'Spicy':             { c:0.50, v:0.20, r:0.25, e:0.05 },
+  'Thought-Provoking': { c:0.15, v:0.15, r:0.50, e:0.20 },
+  'WTF':               { c:0.10, v:0.10, r:0.65, e:0.15 },
+};
+
+// ─── State ────────────────────────────────────────────────────────────────
+const S = {
+  feedPosts: [],
+  urlPosts:  [],
+  feedSort:  { col: 'gemScore', dir: -1 },
+  urlSort:   { col: 'gemScore', dir: -1 },
+  feedSearch: '',
+  urlSearch:  '',
+  refreshTimer: null,
+  countdownTimer: null,
+  countdownSec: 0,
+  countdownTotal: 0,
+  fetching: false,
+  proxyOk: false,
+};
+
+// ─── DOM ──────────────────────────────────────────────────────────────────
+const $  = id => document.getElementById(id);
+const priority     = $('priority');
+const maxAge       = $('maxAge');
+const exportBtn    = $('exportBtn');
+const resetBtn     = $('resetBtn');
+const rowCount     = $('rowCount');
+const toasts       = $('toasts');
+const proxyBanner  = $('proxyBanner');
+const proxyDot     = $('proxyDot');
+const proxyMsg     = $('proxyMsg');
+
+// Feed
+const subInput     = $('subInput');
+const postsPerSub  = $('postsPerSub');
+const refreshInt   = $('refreshInterval');
+const fetchFeedBtn = $('fetchFeedBtn');
+const stopFeedBtn  = $('stopFeedBtn');
+const countdownRing = $('countdownRing');
+const countdownNum  = $('countdownNum');
+const feedStatus   = $('feedStatus');
+const feedStatusTxt= $('feedStatusText');
+const feedProgress = $('feedProgress');
+const feedTbody    = $('feedTbody');
+const feedEmpty    = $('feedEmpty');
+const feedScroll   = $('feedScroll');
+const feedSearch   = $('feedSearch');
+const minGem       = $('minGem');
+
+// URL
+const dropzone     = $('dropzone');
+const fileInput    = $('fileInput');
+const pasteInput   = $('pasteInput');
+const parsePasteBtn= $('parsePasteBtn');
+const clearPasteBtn= $('clearPasteBtn');
+const urlStatus    = $('urlStatus');
+const urlStatusTxt = $('urlStatusText');
+const urlProgress  = $('urlProgress');
+const urlTbody     = $('urlTbody');
+const urlEmpty     = $('urlEmpty');
+const urlScroll    = $('urlScroll');
+const urlSearch    = $('urlSearch');
+
+// ─── Toast ────────────────────────────────────────────────────────────────
+function toast(msg, type = 'info', dur = 5000) {
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.textContent = msg;
+  toasts.appendChild(el);
+  setTimeout(() => el.remove(), dur);
+}
+
+// ─── Proxy health check ───────────────────────────────────────────────────
+async function checkProxy() {
+  proxyDot.className = 'proxy-dot warn';
+  proxyMsg.textContent = 'Checking proxy on localhost:8000…';
+  try {
+    const url = 'https://www.reddit.com/api/info.json?id=t3_1&raw_json=1';
+    const res = await fetch(PROXY + url, { signal: AbortSignal.timeout(5000) });
+    if (res.ok || res.status === 404) {
+      // Any non-network-error response means the proxy is running
+      S.proxyOk = true;
+      proxyDot.className = 'proxy-dot ok';
+      proxyMsg.innerHTML = '✓ Proxy running on localhost:8000 — Reddit data will load fine';
+    } else {
+      throw new Error(`Status ${res.status}`);
+    }
+  } catch (e) {
+    S.proxyOk = false;
+    proxyDot.className = 'proxy-dot err';
+    proxyMsg.innerHTML = `✗ Proxy not running — start it with <code>python server.py</code> then refresh. (${e.message})`;
+  }
+}
+
+// ─── Utilities ────────────────────────────────────────────────────────────
+function setFeedStatus(msg, pct = null) {
+  if (!msg) { feedStatus.classList.remove('visible'); return; }
+  feedStatus.classList.add('visible');
+  feedStatusTxt.textContent = msg;
+  if (pct !== null) feedProgress.style.width = pct + '%';
+}
+
+function setUrlStatus(msg, pct = null) {
+  if (!msg) { urlStatus.classList.remove('visible'); return; }
+  urlStatus.classList.add('visible');
+  urlStatusTxt.textContent = msg;
+  if (pct !== null) urlProgress.style.width = pct + '%';
+}
+
+function clamp(n, lo = 0, hi = 100) { return Math.min(hi, Math.max(lo, isNaN(n) ? 0 : n)); }
+
+function fmt(n) {
+  if (n == null || isNaN(n)) return '—';
+  if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M';
+  if (n >= 1e4) return (n / 1000).toFixed(0) + 'k';
+  return Math.max(0, n).toLocaleString();
+}
+
+function fmtAge(h) {
+  if (h < 1)  return Math.round(h * 60) + 'm';
+  if (h < 24) return h.toFixed(1) + 'h';
+  if (h < 168) return (h / 24).toFixed(1) + 'd';
+  return (h / 168).toFixed(1) + 'w';
+}
+
+function ageClass(h) {
+  return h < 1 ? 'age-new' : h < 4 ? 'age-mid' : 'age-old';
+}
+
+function fmtDelta(d) {
+  if (d == null || isNaN(d)) return '<span class="delta-zero">—</span>';
+  if (d > 0) return `<span class="delta-up">+${fmt(d)}</span>`;
+  if (d < 0) return `<span class="delta-down">${fmt(d)}</span>`;
+  return '<span class="delta-zero">~</span>';
+}
+
+function td(tr, cls, val) {
+  const el = document.createElement('td');
+  el.className = cls; el.textContent = val; tr.appendChild(el); return el;
+}
+
+// ─── Snapshots (for delta tracking) ──────────────────────────────────────
+function loadSnaps() {
+  try { return JSON.parse(sessionStorage.getItem(SNAP_KEY) || '{}'); } catch { return {}; }
+}
+function saveSnaps(snaps) {
+  try { sessionStorage.setItem(SNAP_KEY, JSON.stringify(snaps)); } catch {}
+}
+function pruneSnaps(snaps) {
+  const cutoff = Date.now() / 1000 - 24 * 3600;
+  for (const id of Object.keys(snaps)) {
+    if ((snaps[id].t || 0) < cutoff) delete snaps[id];
+  }
+  return snaps;
+}
+
+// ─── Scoring ──────────────────────────────────────────────────────────────
+function computeScores(p) {
+  const ageHours = Math.max((Date.now() / 1000 - p.utc) / 3600, 1 / 60);
+  const score    = Math.max(p.ups, 0);
+  const ratio    = Math.min(1, Math.max(0, p.ratio ?? 1.0));
+  const comments = Math.max(p.comments, 0);
+  const ageMin   = ageHours * 60;
+
+  // Controversy: low-vote-ratio on high-scoring posts.
+  // Suppress when too fresh (ratio not stabilized) or too few votes (ratio noisy).
+  let controversy;
+  if (score < 20 || ageMin < 45) {
+    controversy = clamp((comments / Math.max(score, 3)) * 20);
+  } else {
+    controversy = clamp((1 - ratio) * 2 * Math.log10(score + 1) * 50);
+  }
+
+  const engagement   = clamp(Math.log10(score + comments * 3 + 1) * 20);
+  const velocity     = clamp(engagement / Math.log10(Math.max(ageHours, 0.083) + 2) * 5);
+  const commentRatio = clamp((comments / Math.max(score, 5)) * 30);
+
+  // Delta boost for velocity when we have a previous snapshot
+  let deltaScore = null, deltaComments = null, velocityFinal = velocity;
+  if (p.prevSnap) {
+    const dtMin = Math.max((Date.now() / 1000 - p.prevSnap.t) / 60, 1);
+    deltaScore    = score - (p.prevSnap.score || 0);
+    deltaComments = comments - (p.prevSnap.comments || 0);
+    if (deltaScore > 0 || deltaComments > 0) {
+      const boost = clamp(
+        Math.log1p(Math.max(deltaScore, 0)) / Math.log1p(dtMin + 1) * 25 +
+        Math.log1p(Math.max(deltaComments, 0)) / Math.log1p(dtMin + 1) * 35
+      );
+      velocityFinal = clamp(velocity * 0.3 + boost * 0.7);
+    }
+  }
+
+  return {
+    ...p, ageHours, controversy, engagement,
+    velocity: velocityFinal, commentRatio,
+    deltaScore, deltaComments, ratioDisp: ratio,
+  };
+}
+
+function applyWeights(posts, mode) {
+  const w = WEIGHTS[mode] || WEIGHTS['Balanced'];
+  return posts.map(p => ({
+    ...p,
+    gemScore: clamp(
+      (p.controversy  ?? 0) * w.c +
+      (p.velocity     ?? 0) * w.v +
+      (p.commentRatio ?? 0) * w.r +
+      (p.engagement   ?? 0) * w.e
+    ),
+  }));
+}
+
+// ─── Parallel proxy fetcher ───────────────────────────────────────────────
+// Runs `tasks` array of async functions with at most `concurrency` in flight.
+async function parallel(tasks, concurrency, onDone) {
+  const results = new Array(tasks.length);
+  let idx = 0, done = 0;
+  async function worker() {
+    while (idx < tasks.length) {
+      const i = idx++;
+      try { results[i] = await tasks[i](); } catch { results[i] = null; }
+      onDone && onDone(++done, tasks.length);
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(concurrency, tasks.length) }, worker));
+  return results;
+}
+
+// Proxy-first fetch: try proxy, then (if proxy failed) try direct as last resort.
+async function proxyFetch(targetUrl, timeoutMs = 14000) {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    const res = await fetch(PROXY + targetUrl, { signal: ctrl.signal });
+    if (!res.ok) throw new Error(`Proxy ${res.status}`);
+    return res;
+  } finally {
+    clearTimeout(t);
+  }
+}
+
+// ─── Live Feed Fetching ───────────────────────────────────────────────────
+// Fetches /r/sub/new.json for each subreddit in parallel.
+async function fetchFeedPosts(subs, limit) {
+  const tasks = subs.map(sub => async () => {
+    const url = `https://www.reddit.com/r/${encodeURIComponent(sub)}/new.json?limit=${limit}&raw_json=1`;
+    try {
+      const res = await proxyFetch(url, 12000);
+      const json = await res.json();
+      return (json?.data?.children ?? []).map(c => {
+        const p = c?.data;
+        if (!p?.id) return null;
+        return {
+          id: p.id, title: p.title || '',
+          url: p.permalink ? 'https://www.reddit.com' + p.permalink : '',
+          subreddit: p.subreddit || sub, author: p.author || '',
+          ups: Math.max(0, parseInt(p.ups ?? p.score ?? 0) || 0),
+          ratio: parseFloat(p.upvote_ratio ?? 1.0),
+          comments: parseInt(p.num_comments ?? 0) || 0,
+          utc: parseFloat(p.created_utc ?? Date.now() / 1000),
+        };
+      }).filter(Boolean);
+    } catch (e) {
+      console.warn(`[GemFinder] /new fetch for r/${sub} failed:`, e.message);
+      return [];
+    }
+  });
+
+  let completed = 0;
+  const results = await parallel(tasks, CONCURRENCY, (done, total) => {
+    const pct = Math.round(done / total * 90) + 5;
+    setFeedStatus(`Fetching ${done}/${total} subreddits…`, pct);
+  });
+
+  return results.flat();
+}
+
+// ─── URL Tab: Batch /api/info.json ───────────────────────────────────────
+async function fetchInfoBatch(ids) {
+  // Reddit /api/info handles standard base36 IDs (4–8 chars).
+  // Longer IDs (gallery, crosspost) silently return nothing — filter them.
+  const valid = ids.filter(id => /^[a-z0-9]{4,8}$/i.test(id));
+  if (!valid.length) return {};
+
+  const fullnames = valid.map(id => `t3_${id}`).join(',');
+  const url = `https://www.reddit.com/api/info.json?id=${encodeURIComponent(fullnames)}&raw_json=1`;
+  try {
+    const res = await proxyFetch(url, 15000);
+    const json = await res.json();
+    const out = {};
+    for (const c of json?.data?.children ?? []) {
+      const row = c?.data;
+      if (row?.id) out[row.id] = row;
+    }
+    return out;
+  } catch (e) {
+    console.warn('[GemFinder] info batch failed:', e.message);
+    return {};
+  }
+}
+
+async function fetchAllIds(ids, onProgress) {
+  // Split into batches, run in parallel
+  const batches = [];
+  for (let i = 0; i < ids.length; i += BATCH_SIZE) batches.push(ids.slice(i, i + BATCH_SIZE));
+
+  const results = await parallel(
+    batches.map(batch => () => fetchInfoBatch(batch)),
+    CONCURRENCY,
+    onProgress
+  );
+
+  return Object.assign({}, ...results.filter(Boolean));
+}
+
+// ─── URL Parsing ──────────────────────────────────────────────────────────
+function extractPostId(url) {
+  if (!url) return null;
+  const s = String(url).trim();
+  let m;
+  m = s.match(/reddit\.com\/r\/\w+\/comments\/([a-z0-9]+)/i); if (m) return m[1];
+  m = s.match(/redd\.it\/([a-z0-9]+)/i); if (m) return m[1];
+  m = s.match(/\br\/\w+\/comments\/([a-z0-9]+)/i); if (m) return m[1];
+  return null;
+}
+
+function canonicalUrl(raw) {
+  if (!raw) return null;
+  const s = String(raw).trim().replace(/[)"'\]>.,;:!?]+$/, '');
+  let m;
+  m = s.match(/(?:https?:\/\/)?(?:(?:www|old|new|np|i|preview)\.)?reddit\.com(\/r\/\w+\/comments\/\w+(?:\/[^\s"'<>)\]]*)?)/i);
+  if (m) return 'https://www.reddit.com' + m[1].replace(/\?.*$/, '');
+  m = s.match(/(?:https?:\/\/)?redd\.it\/(\w+)/i);
+  if (m) return 'https://redd.it/' + m[1];
+  m = s.match(/\b(r\/\w+\/comments\/\w+(?:\/[^\s"'<>)\]]*)?)/i);
+  if (m) return 'https://www.reddit.com/' + m[1].replace(/\?.*$/, '');
+  return null;
+}
+
+function extractUrlsFromText(text) {
+  const found = [], seen = new Set();
+  const RE = /(?:https?:\/\/)?(?:(?:www|old|new|np|i|preview)\.)?reddit\.com\/r\/\w+\/comments\/\w+(?:\/[^\s"'<>)\]\n]*)?|(?:https?:\/\/)?redd\.it\/\w+|\br\/\w+\/comments\/\w+(?:\/[^\s"'<>)\]\n]*)?/gi;
+  let m;
+  while ((m = RE.exec(text)) !== null) {
+    const url = canonicalUrl(m[0]);
+    if (!url || seen.has(url)) continue;
+    seen.add(url); found.push({ url, title: '' });
+  }
+  return found;
+}
+
+// ─── Live Feed flow ───────────────────────────────────────────────────────
+async function runFeedFetch() {
+  if (S.fetching) return;
+  S.fetching = true;
+  fetchFeedBtn.disabled = true;
+
+  const rawSubs = subInput.value.split(',').map(s => s.trim().replace(/^r\//i, '')).filter(Boolean);
+  if (!rawSubs.length) {
+    toast('Enter at least one subreddit.', 'err');
+    S.fetching = false; fetchFeedBtn.disabled = false; return;
+  }
+
+  const limit = parseInt(postsPerSub.value) || 50;
+  const maxH  = parseFloat(maxAge.value) || 0;
+  setFeedStatus(`Fetching /new from ${rawSubs.length} subreddit(s)…`, 5);
+
+  let raw;
+  try {
+    raw = await fetchFeedPosts(rawSubs, limit);
+  } catch (e) {
+    toast('Feed fetch failed: ' + e.message, 'err');
+    setFeedStatus(null);
+    S.fetching = false; fetchFeedBtn.disabled = false; return;
+  }
+
+  setFeedStatus('Scoring…', 98);
+  await new Promise(r => setTimeout(r, 0)); // paint
+
+  const now = Date.now() / 1000;
+  let snaps = pruneSnaps(loadSnaps());
+
+  // Age filter
+  if (maxH > 0) raw = raw.filter(p => (now - p.utc) / 3600 <= maxH);
+
+  // Attach snapshots, compute scores
+  let scored = raw.map(p => computeScores({ ...p, prevSnap: snaps[p.id] || null }));
+  scored = applyWeights(scored, priority.value);
+
+  // Save new snapshots
+  for (const p of scored) snaps[p.id] = { score: p.ups, comments: p.comments, ratio: p.ratio, t: now };
+  saveSnaps(snaps);
+
+  // Merge: new fetch replaces existing, keep stale posts up to cap
+  const freshIds = new Set(scored.map(p => p.id));
+  S.feedPosts = [...scored, ...S.feedPosts.filter(p => !freshIds.has(p.id)).slice(0, 300)];
+
+  setFeedStatus(null);
+  renderFeed();
+
+  const newCount   = scored.filter(p => !p.prevSnap).length;
+  const deltaCount = scored.filter(p => p.prevSnap).length;
+  toast(`${scored.length} posts — ${newCount} new, ${deltaCount} with Δ data`, 'ok', 4000);
+
+  S.fetching = false; fetchFeedBtn.disabled = false;
+}
+
+// ─── URL Paste flow ───────────────────────────────────────────────────────
+async function runUrlFetch(items) {
+  if (!items.length) { toast('No Reddit URLs found.', 'err'); return; }
+
+  // Deduplicate
+  const seen = new Set(), unique = [];
+  for (const item of items) {
+    const key = (item.url || '').toLowerCase().replace(/\/$/, '').replace(/\?.*$/, '');
+    if (seen.has(key)) continue; seen.add(key); unique.push(item);
+  }
+
+  const ids = unique.map(item => extractPostId(item.url)).filter(Boolean);
+  if (!ids.length) { toast('Could not extract post IDs from those URLs.', 'err'); return; }
+
+  setUrlStatus(`Fetching ${ids.length} post(s) in parallel…`, 5);
+
+  const postData = await fetchAllIds(ids, (done, total) => {
+    const pct = Math.round(done / total * 90) + 5;
+    setUrlStatus(`Fetched ${done}/${total} batches…`, pct);
+  });
+
+  setUrlStatus('Scoring…', 99);
+  await new Promise(r => setTimeout(r, 0));
+
+  const now = Date.now() / 1000;
+  const maxH = parseFloat(maxAge.value) || 0;
+
+  let posts = unique.map(item => {
+    const id  = extractPostId(item.url);
+    const row = id ? postData[id] : null;
+    if (row) {
+      return {
+        id, title: String(row.title || item.title || '').trim() || item.url,
+        url: row.permalink ? 'https://www.reddit.com' + row.permalink.replace(/\?.*$/, '') : item.url,
+        ups: Math.max(0, parseInt(row.ups ?? row.score ?? 0) || 0),
+        ratio: parseFloat(row.upvote_ratio ?? 1.0),
+        comments: parseInt(row.num_comments ?? 0) || 0,
+        utc: parseFloat(row.created_utc ?? now),
+        subreddit: row.subreddit || '', author: row.author || '',
+        source: 'reddit', prevSnap: null, fromApi: true,
+      };
+    } else {
+      return {
+        id: id || item.url, title: item.title || item.url, url: item.url,
+        ups: 0, ratio: 1.0, comments: 0, utc: now - 86400,
+        subreddit: '', author: '', source: 'none', prevSnap: null, fromApi: false,
+      };
+    }
+  });
+
+  if (maxH > 0) posts = posts.filter(p => (now - p.utc) / 3600 <= maxH);
+  posts = posts.map(computeScores);
+  posts = applyWeights(posts, priority.value);
+  S.urlPosts = posts;
+
+  setUrlStatus(null);
+  renderUrl();
+
+  const got  = posts.filter(p => p.fromApi).length;
+  const miss = posts.length - got;
+  toast(
+    `${posts.length} post(s) — ${got} with live data${miss ? `, ${miss} not found` : ''}` +
+    (miss > 0 ? ' (deleted, private, or non-standard ID)' : ''),
+    got > 0 ? 'ok' : 'warn', 6000
+  );
+}
+
+// ─── Render: Feed ─────────────────────────────────────────────────────────
+function renderFeed() {
+  const posts = S.feedPosts;
+  if (!posts.length) { feedEmpty.hidden = false; feedScroll.style.display = 'none'; updateCounts(); return; }
+
+  const weighted = applyWeights(posts, priority.value);
+  const { col, dir } = S.feedSort;
+  const minG = parseFloat(minGem.value) || 0;
+  const q = feedSearch.value.toLowerCase();
+
+  let filtered = weighted.filter(p => p.gemScore >= minG);
+  if (q) filtered = filtered.filter(p =>
+    (p.title || '').toLowerCase().includes(q) || (p.subreddit || '').toLowerCase().includes(q)
+  );
+  filtered.sort((a, b) => {
+    const av = a[col] ?? 0, bv = b[col] ?? 0;
+    return typeof av === 'string' ? dir * av.localeCompare(bv) : dir * (bv - av);
+  });
+
+  const frag = document.createDocumentFragment();
+  filtered.forEach((p, i) => {
+    const tr = document.createElement('tr');
+    td(tr, 'num', i + 1);
+    // Title cell
+    const tdT = document.createElement('td'); tdT.className = 'title-cell';
+    const a = document.createElement('a');
+    a.href = p.url; a.target = '_blank'; a.rel = 'noopener noreferrer';
+    a.textContent = p.title || p.id;
+    tdT.appendChild(a);
+    const sb = document.createElement('span');
+    sb.className = 'sub-badge'; sb.textContent = 'r/' + (p.subreddit || '?');
+    tdT.appendChild(sb);
+    if (p.prevSnap) {
+      const dt = document.createElement('span');
+      dt.className = 'src-tag ok'; dt.textContent = 'Δ tracked';
+      tdT.appendChild(dt);
+    }
+    tr.appendChild(tdT);
+    // Nums
+    td(tr, 'num', fmt(p.ups));
+    td(tr, 'num', ((p.ratioDisp ?? 1) * 100).toFixed(0) + '%');
+    td(tr, 'num', fmt(p.comments));
+    const tdAge = document.createElement('td'); tdAge.className = 'num';
+    tdAge.innerHTML = `<span class="${ageClass(p.ageHours)}">${fmtAge(p.ageHours)}</span>`;
+    tr.appendChild(tdAge);
+    const tdDs = document.createElement('td'); tdDs.className = 'num';
+    tdDs.innerHTML = fmtDelta(p.deltaScore); tr.appendChild(tdDs);
+    const tdDc = document.createElement('td'); tdDc.className = 'num';
+    tdDc.innerHTML = fmtDelta(p.deltaComments); tr.appendChild(tdDc);
+    td(tr, 'num', (p.controversy ?? 0).toFixed(1));
+    td(tr, 'num', (p.velocity ?? 0).toFixed(1));
+    td(tr, 'num', (p.commentRatio ?? 0).toFixed(1));
+    // Gem
+    const tdGem = document.createElement('td'); tdGem.className = 'num';
+    tdGem.innerHTML = `<strong>${p.gemScore.toFixed(1)}</strong><span class="score-bar"><span class="score-bar-fill" style="width:${clamp(p.gemScore)}%"></span></span>`;
+    tr.appendChild(tdGem);
+    frag.appendChild(tr);
+  });
+
+  feedTbody.innerHTML = '';
+  feedTbody.appendChild(frag);
+  feedEmpty.hidden = true;
+  feedScroll.style.display = '';
+  updateCounts();
+  updateSortArrows($('feedScroll'), S.feedSort);
+}
+
+// ─── Render: URL ──────────────────────────────────────────────────────────
+function renderUrl() {
+  const posts = S.urlPosts;
+  if (!posts.length) { urlEmpty.hidden = false; urlScroll.style.display = 'none'; updateCounts(); return; }
+
+  const weighted = applyWeights(posts, priority.value);
+  const { col, dir } = S.urlSort;
+  const q = urlSearch.value.toLowerCase();
+  let filtered = weighted.slice();
+  if (q) filtered = filtered.filter(p =>
+    (p.title || '').toLowerCase().includes(q) || (p.subreddit || '').toLowerCase().includes(q)
+  );
+  filtered.sort((a, b) => {
+    const av = a[col] ?? 0, bv = b[col] ?? 0;
+    return typeof av === 'string' ? dir * av.localeCompare(bv) : dir * (bv - av);
+  });
+
+  const frag = document.createDocumentFragment();
+  filtered.forEach((p, i) => {
+    const tr = document.createElement('tr');
+    td(tr, 'num', i + 1);
+    // Title cell
+    const tdT = document.createElement('td'); tdT.className = 'title-cell';
+    const a = document.createElement('a');
+    a.href = p.url; a.target = '_blank'; a.rel = 'noopener noreferrer';
+    a.textContent = p.title || p.url;
+    tdT.appendChild(a);
+    if (p.subreddit) {
+      const sb = document.createElement('span'); sb.className = 'sub-badge';
+      sb.textContent = 'r/' + p.subreddit; tdT.appendChild(sb);
+    }
+    const stag = document.createElement('span');
+    stag.className = p.fromApi ? 'src-tag ok' : 'src-tag err';
+    stag.textContent = p.fromApi ? '✓ live' : '⚠ no data';
+    tdT.appendChild(stag);
+    tr.appendChild(tdT);
+    // Nums
+    td(tr, 'num', fmt(p.ups));
+    td(tr, 'num', ((p.ratioDisp ?? 1) * 100).toFixed(0) + '%');
+    td(tr, 'num', fmt(p.comments));
+    const tdAge = document.createElement('td'); tdAge.className = 'num';
+    tdAge.innerHTML = `<span class="${ageClass(p.ageHours)}">${fmtAge(p.ageHours)}</span>`;
+    tr.appendChild(tdAge);
+    td(tr, 'num', (p.controversy ?? 0).toFixed(1));
+    td(tr, 'num', (p.velocity ?? 0).toFixed(1));
+    td(tr, 'num', (p.commentRatio ?? 0).toFixed(1));
+    td(tr, 'num', (p.engagement ?? 0).toFixed(1));
+    const tdGem = document.createElement('td'); tdGem.className = 'num';
+    tdGem.innerHTML = `<strong>${p.gemScore.toFixed(1)}</strong><span class="score-bar"><span class="score-bar-fill" style="width:${clamp(p.gemScore)}%"></span></span>`;
+    tr.appendChild(tdGem);
+    frag.appendChild(tr);
+  });
+
+  urlTbody.innerHTML = '';
+  urlTbody.appendChild(frag);
+  urlEmpty.hidden = true;
+  urlScroll.style.display = '';
+  updateCounts();
+  updateSortArrows($('urlScroll'), S.urlSort);
+}
+
+// ─── Sort arrow helpers ───────────────────────────────────────────────────
+function updateSortArrows(container, sort) {
+  container.querySelectorAll('thead th[data-col]').forEach(th => {
+    let arr = th.querySelector('.arr');
+    if (!arr) { arr = document.createElement('span'); arr.className = 'arr'; th.appendChild(arr); }
+    th.classList.toggle('sorted', th.dataset.col === sort.col);
+    arr.textContent = th.dataset.col === sort.col ? (sort.dir === -1 ? ' ↓' : ' ↑') : '';
+  });
+}
+
+function wireSort(container, sortState, renderFn) {
+  container.querySelectorAll('thead th[data-col]').forEach(th => {
+    th.addEventListener('click', () => {
+      const col = th.dataset.col;
+      if (sortState.col === col) sortState.dir *= -1;
+      else { sortState.col = col; sortState.dir = -1; }
+      renderFn();
+    });
+  });
+}
+
+// ─── Header counts ────────────────────────────────────────────────────────
+function updateCounts() {
+  const isFeed = document.querySelector('.tab-btn.active')?.dataset.tab === 'feed';
+  const posts = isFeed ? S.feedPosts : S.urlPosts;
+  if (posts.length) {
+    rowCount.style.display = '';
+    rowCount.textContent = posts.length + ' posts';
+    exportBtn.disabled = false;
+    resetBtn.disabled = false;
+  } else {
+    rowCount.style.display = 'none';
+    exportBtn.disabled = !S.feedPosts.length && !S.urlPosts.length;
+    resetBtn.disabled = !S.feedPosts.length && !S.urlPosts.length;
+  }
+}
+
+// ─── Auto-refresh ─────────────────────────────────────────────────────────
+function startCountdown(sec) {
+  clearInterval(S.countdownTimer);
+  S.countdownSec = S.countdownTotal = sec;
+  countdownRing.classList.add('show');
+
+  S.countdownTimer = setInterval(() => {
+    S.countdownSec--;
+    if (S.countdownSec <= 0) { clearInterval(S.countdownTimer); countdownRing.classList.remove('show'); return; }
+    countdownRing.style.setProperty('--pct', (S.countdownSec / S.countdownTotal * 100).toFixed(1));
+    countdownNum.textContent = S.countdownSec < 60 ? S.countdownSec + 's' : Math.ceil(S.countdownSec / 60) + 'm';
+  }, 1000);
+}
+
+function stopAutoRefresh() {
+  clearTimeout(S.refreshTimer); clearInterval(S.countdownTimer);
+  S.refreshTimer = null; countdownRing.classList.remove('show'); stopFeedBtn.disabled = true;
+}
+
+// ─── Export CSV ───────────────────────────────────────────────────────────
+exportBtn.addEventListener('click', () => {
+  const isFeed = document.querySelector('.tab-btn.active')?.dataset.tab === 'feed';
+  const posts = isFeed ? S.feedPosts : S.urlPosts;
+  if (!posts.length) return;
+  const headers = ['rank','title','url','subreddit','author','ups','vote_pct','comments','age_hours',
+    'delta_ups','delta_comments','controversy','velocity','comment_ratio','engagement','gem_score'];
+  const scored = applyWeights(posts, priority.value).sort((a, b) => b.gemScore - a.gemScore);
+  const rows = scored.map((p, i) => [
+    i + 1,
+    `"${(p.title || '').replace(/"/g, '""')}"`,
+    p.url, p.subreddit || '', p.author || '',
+    p.ups, ((p.ratioDisp ?? 1) * 100).toFixed(1),
+    p.comments, p.ageHours.toFixed(2),
+    p.deltaScore ?? '', p.deltaComments ?? '',
+    (p.controversy ?? 0).toFixed(2), (p.velocity ?? 0).toFixed(2),
+    (p.commentRatio ?? 0).toFixed(2), (p.engagement ?? 0).toFixed(2),
+    p.gemScore.toFixed(2),
+  ]);
+  const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+  a.download = `gemfinder_${new Date().toISOString().slice(0, 16).replace(/:/g, '-')}.csv`;
+  a.click(); URL.revokeObjectURL(a.href);
+});
+
+// ─── Event wiring ─────────────────────────────────────────────────────────
+// Tabs
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    $('tab-' + btn.dataset.tab).classList.add('active');
+    updateCounts();
+  });
+});
+
+// Feed buttons
+fetchFeedBtn.addEventListener('click', async () => {
+  stopAutoRefresh();
+  await runFeedFetch();
+  const interval = parseInt(refreshInt.value) || 0;
+  if (interval > 0) {
+    stopFeedBtn.disabled = false;
+    const schedule = () => {
+      startCountdown(interval);
+      S.refreshTimer = setTimeout(async () => { await runFeedFetch(); schedule(); }, interval * 1000);
+    };
+    schedule();
+  }
+});
+
+stopFeedBtn.addEventListener('click', () => { stopAutoRefresh(); toast('Auto-refresh stopped.', 'info', 2500); });
+
+// URL tab
+parsePasteBtn.addEventListener('click', () => {
+  const text = pasteInput.value.trim();
+  if (!text) { toast('Nothing to parse.', 'err'); return; }
+  runUrlFetch(extractUrlsFromText(text));
+});
+
+clearPasteBtn.addEventListener('click', () => {
+  pasteInput.value = '';
+  S.urlPosts = [];
+  renderUrl();
+});
+
+dropzone.addEventListener('click', () => fileInput.click());
+dropzone.addEventListener('keydown', e => e.key === 'Enter' && fileInput.click());
+dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('dragover'); });
+dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+dropzone.addEventListener('drop', async e => {
+  e.preventDefault(); dropzone.classList.remove('dragover');
+  const f = e.dataTransfer.files[0];
+  if (f) { const text = await f.text(); runUrlFetch(extractUrlsFromText(text)); }
+});
+fileInput.addEventListener('change', async () => {
+  if (fileInput.files[0]) { const text = await fileInput.files[0].text(); runUrlFetch(extractUrlsFromText(text)); }
+});
+
+// Shared controls
+priority.addEventListener('change', () => { renderFeed(); renderUrl(); });
+maxAge.addEventListener('change', () => { renderFeed(); renderUrl(); });
+feedSearch.addEventListener('input', () => renderFeed());
+urlSearch.addEventListener('input', () => renderUrl());
+minGem.addEventListener('input', () => renderFeed());
+
+resetBtn.addEventListener('click', () => {
+  stopAutoRefresh();
+  S.feedPosts = []; S.urlPosts = [];
+  renderFeed(); renderUrl(); updateCounts();
+  toast('Cleared.', 'info', 2500);
+});
+
+// Wire sortable column headers
+wireSort($('feedScroll'), S.feedSort, renderFeed);
+wireSort($('urlScroll'), S.urlSort, renderUrl);
+
+// ─── Init ─────────────────────────────────────────────────────────────────
+checkProxy();
+
+})();
+</script>
+</body>
+</html>

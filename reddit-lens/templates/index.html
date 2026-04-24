@@ -1,0 +1,957 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reddit Lens</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, sans-serif; background: #0d1117; color: #e6edf3; min-height: 100vh; }
+  header { padding: 1rem 1.5rem; border-bottom: 1px solid #21262d; display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; }
+  header h1 { font-size: 1.2rem; font-weight: 600; margin-right: .4rem; }
+  .hbtn { padding: .45rem 1.1rem; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: .9rem; }
+  .hbtn:disabled { opacity: .5; cursor: default; }
+  #fetch-btn  { background: #238636; }
+  #export-btn { background: #8957e5; }
+  #copy-urls-btn { background: #1f6feb; }
+  #card-btn { background: #1f6feb; }
+  #screenshot-btn { background: #da3633; }
+  #cancel-btn { background: #6e7681; }
+  #email-zip-btn { background: #8957e5; }
+  #bug-report-btn { background: #6e7681; }
+  #status { font-size: .82rem; color: #8b949e; margin-left: auto; }
+
+  /* export options panel */
+  #export-panel { padding: .6rem 1.5rem; border-bottom: 1px solid #21262d; display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; background: #0d1117; }
+  #export-panel label { font-size: .82rem; color: #8b949e; display: flex; align-items: center; gap: .3rem; }
+  #export-panel input[type=number], #export-panel select { background: #161b22; color: #e6edf3; border: 1px solid #30363d; border-radius: 5px; padding: .2rem .4rem; font-size: .82rem; }
+  #export-panel input[type=number] { width: 70px; }
+  #sub-checkboxes { display: flex; flex-wrap: wrap; gap: .4rem; }
+  .sub-check-label { background: #21262d; border-radius: 4px; padding: .15rem .5rem; font-size: .78rem; display: inline-flex; align-items: center; gap: .3rem; cursor: pointer; }
+  .sub-check-label input { cursor: pointer; }
+
+  /* fetch subreddit selector */
+  #fetch-panel { padding: .5rem 1.5rem; border-bottom: 1px solid #21262d; display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
+  #fetch-panel label { font-size: .82rem; color: #8b949e; }
+  #fetch-sub-select { background: #161b22; color: #e6edf3; border: 1px solid #30363d; border-radius: 5px; padding: .25rem .5rem; font-size: .82rem; }
+
+  #sort-bar { padding: .6rem 1.5rem; display: flex; gap: .5rem; align-items: center; border-bottom: 1px solid #21262d; flex-wrap: wrap; }
+  #sort-bar label { font-size: .82rem; color: #8b949e; }
+  #sort-bar select { background: #161b22; color: #e6edf3; border: 1px solid #30363d; border-radius: 5px; padding: .25rem .5rem; font-size: .82rem; }
+  #filter-input { margin-left: auto; background: #161b22; color: #e6edf3; border: 1px solid #30363d; border-radius: 5px; padding: .25rem .6rem; font-size: .82rem; width: 200px; }
+  #filter-input::placeholder { color: #484f58; }
+
+  #sources-panel { padding: .6rem 1.5rem; border-bottom: 1px solid #21262d; display: flex; flex-wrap: wrap; gap: .4rem; align-items: center; }
+  .sub-tag { background: #21262d; border-radius: 4px; padding: .15rem .5rem; font-size: .78rem; display: inline-flex; align-items: center; gap: .3rem; }
+  .sub-tag button { background: none; border: none; color: #8b949e; cursor: pointer; font-size: .85rem; line-height: 1; padding: 0; }
+  .sub-tag button:hover { color: #f85149; }
+  #add-sub-form { display: flex; gap: .4rem; margin-left: auto; }
+  #add-sub-input { background: #161b22; color: #e6edf3; border: 1px solid #30363d; border-radius: 5px; padding: .25rem .6rem; font-size: .82rem; width: 160px; }
+  #add-sub-input::placeholder { color: #484f58; }
+  #add-sub-sort { background: #161b22; color: #e6edf3; border: 1px solid #30363d; border-radius: 5px; padding: .25rem .4rem; font-size: .82rem; }
+  #add-sub-btn { padding: .25rem .7rem; background: #1f6feb; color: #fff; border: none; border-radius: 5px; cursor: pointer; font-size: .82rem; }
+
+  #grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1rem; padding: 1.2rem 1.5rem; }
+  .card { background: #161b22; border: 1px solid #21262d; border-radius: 8px; padding: 1rem; display: flex; flex-direction: column; gap: .5rem; }
+  .card-title a { color: #58a6ff; text-decoration: none; font-size: .95rem; font-weight: 500; line-height: 1.4; }
+  .card-title a:hover { text-decoration: underline; }
+  .card-meta { font-size: .75rem; color: #8b949e; display: flex; flex-wrap: wrap; gap: .4rem; }
+  .badge { background: #21262d; border-radius: 4px; padding: .1rem .4rem; }
+  .badge.controversy { background: #3d1f1f; color: #f85149; }
+  .badge.velocity { background: #1f2d1f; color: #3fb950; }
+  .card-preview { font-size: .8rem; color: #8b949e; line-height: 1.5; }
+  .card-links { font-size: .75rem; display: flex; gap: .8rem; }
+  .card-links a { color: #8b949e; text-decoration: none; }
+  .card-links a:hover { color: #58a6ff; }
+  #empty { text-align: center; padding: 4rem; color: #484f58; }
+  footer { padding: .8rem 1.5rem; border-top: 1px solid #21262d; font-size: .78rem; color: #484f58; }
+  #progress-bar { position: fixed; top: 0; left: 0; height: 3px; width: 0; background: #58a6ff; transition: width .2s ease; z-index: 9999; pointer-events: none; }
+  #progress-bar.done { transition: width .1s ease, opacity .4s ease .1s; opacity: 0; }
+
+  /* Similar Subreddits Modal */
+  #similar-modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 10000; align-items: center; justify-content: center; }
+  #similar-modal.active { display: flex; }
+  .modal-content { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 1.5rem; max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto; }
+  .modal-content h3 { margin-bottom: 1rem; color: #e6edf3; }
+  .method-tabs { display: flex; gap: .5rem; margin-bottom: 1rem; flex-wrap: wrap; }
+  .method-tab { padding: .4rem .8rem; background: #21262d; border: 1px solid #30363d; border-radius: 4px; cursor: pointer; font-size: .8rem; color: #8b949e; }
+  .method-tab.active { background: #238636; color: #fff; border-color: #238636; }
+  .method-panel { display: none; }
+  .method-panel.active { display: block; }
+  .suggestion-list { display: flex; flex-direction: column; gap: .4rem; margin-bottom: 1rem; }
+  .suggestion-item { display: flex; align-items: center; gap: .5rem; padding: .5rem; background: #21262d; border-radius: 4px; }
+  .suggestion-item input { cursor: pointer; }
+  .suggestion-item label { cursor: pointer; flex: 1; font-size: .85rem; }
+  .suggest-btn { background: none; border: none; cursor: pointer; font-size: .85rem; padding: 0 .2rem; margin-left: .2rem; }
+  .suggest-btn:hover { opacity: 0.8; }
+  .modal-actions { display: flex; gap: .5rem; justify-content: flex-end; }
+  .modal-actions button { padding: .5rem 1rem; border: none; border-radius: 4px; cursor: pointer; font-size: .85rem; }
+  .modal-actions .btn-secondary { background: #6e7681; color: #fff; }
+  .modal-actions .btn-primary { background: #238636; color: #fff; }
+  .modal-actions .btn-primary:disabled { opacity: 0.5; cursor: default; }
+  .btn { display: inline-block; padding: .5rem 1.2rem; border-radius: 6px; color: #fff; font-size: .85rem; cursor: pointer; border: none; }
+  .link-list { display: flex; flex-direction: column; gap: .5rem; }
+  .link-list a { color: #58a6ff; text-decoration: none; font-size: .85rem; padding: .5rem; background: #21262d; border-radius: 4px; }
+  .link-list a:hover { text-decoration: underline; }
+
+  /* Dropdown for similar subs */
+  .suggest-dropdown { position: relative; display: inline-block; }
+  .suggest-dropdown-content {
+    display: none;
+    position: absolute;
+    background-color: #161b22;
+    min-width: 180px;
+    box-shadow: 0 8px 16px rgba(0,0,0,0.5);
+    z-index: 100;
+    border: 1px solid #30363d;
+    border-radius: 6px;
+    padding: 0.5rem 0;
+    right: 0;
+    top: 100%;
+  }
+  .suggest-dropdown-content a {
+    color: #e6edf3;
+    padding: 8px 12px;
+    text-decoration: none;
+    display: block;
+    font-size: 0.8rem;
+    text-align: left;
+  }
+  .suggest-dropdown-content a:hover { background-color: #21262d; color: #58a6ff; }
+  .suggest-dropdown-content .dropdown-divider { height: 1px; background: #30363d; margin: 4px 0; }
+  .suggest-dropdown-content .dropdown-header { padding: 4px 12px; font-size: 0.7rem; color: #8b949e; text-transform: uppercase; font-weight: 600; }
+  .suggest-dropdown:hover .suggest-dropdown-content { display: block; }
+</style>
+</head>
+<body>
+<div id="progress-bar"></div>
+
+<header>
+  <h1>🔭 Reddit Lens</h1>
+  <button id="fetch-btn" class="hbtn" aria-label="Fetch new posts from Reddit" onclick="RL.doFetch()">Fetch</button>
+  <button id="export-btn" class="hbtn" aria-label="Email text export" onclick="RL.doExport()">📧 Email Export</button>
+  <button id="copy-urls-btn" class="hbtn" aria-label="Copy post URLs to clipboard" onclick="RL.doCopyUrls()" disabled>📋 Copy URLs</button>
+  <button id="card-btn" class="hbtn" aria-label="Email card view screenshot" onclick="RL.doCardExport()">📋 Email Card View</button>
+  <button id="screenshot-btn" class="hbtn" aria-label="Export screenshots of each Reddit post" onclick="RL.doScreenshotExport()">📸 Export Screenshots</button>
+  <button id="cancel-btn" class="hbtn" aria-label="Cancel screenshot export" onclick="RL.cancelScreenshotJob()" style="display:none">Cancel</button>
+  <button id="email-zip-btn" class="hbtn" aria-label="Email the completed ZIP" onclick="RL.emailScreenshotZip()" style="display:none">📧 Email ZIP</button>
+  <button id="bug-report-btn" class="hbtn" aria-label="Generate bug report" onclick="RL.generateBugReport()">🪲 Bug Report</button>
+  <span id="status">Ready</span>
+</header>
+
+<!-- Export options -->
+<div id="export-panel">
+  <label style="font-weight:600;color:#e6edf3">Export options:</label>
+
+  <label>
+    <input type="radio" name="export-mode" value="all" checked onchange="RL.updateExportUI()"> All
+  </label>
+  <label>
+    <input type="radio" name="export-mode" value="count" onchange="RL.updateExportUI()"> Count
+    <input type="number" id="export-count" value="50" min="1" style="display:none">
+  </label>
+  <label>
+    <input type="radio" name="export-mode" value="percent" onchange="RL.updateExportUI()"> Percent
+    <input type="number" id="export-percent" value="50" min="1" max="100" style="display:none">
+    <span id="export-pct-label" style="display:none;font-size:.78rem;color:#484f58">%</span>
+  </label>
+
+  <span style="color:#30363d">|</span>
+  <label style="font-weight:600;color:#e6edf3">Subreddits:</label>
+  <label><input type="checkbox" id="export-all-subs" checked onchange="RL.toggleAllSubs(this)"> All</label>
+  <div id="sub-checkboxes"></div>
+  
+  <span style="color:#30363d">|</span>
+  <label><input type="checkbox" id="export-full-page"> Full page screenshots</label>
+</div>
+
+<!-- Fetch subreddit filter -->
+<div id="fetch-panel">
+  <label>Fetch from:</label>
+  <select id="fetch-sub-select">
+    <option value="">All subreddits</option>
+  </select>
+</div>
+
+<div id="sort-bar">
+  <label>Sort by</label>
+  <select id="sort-select" onchange="RL.renderCards()">
+    <option value="controversy">Controversy</option>
+    <option value="velocity">Velocity (comments/hr)</option>
+    <option value="score">Score</option>
+  </select>
+
+  <label style="margin-left:.8rem">Min velocity</label>
+  <input type="number" id="min-velocity" value="0" min="0" step="5" style="width:60px;background:#161b22;color:#e6edf3;border:1px solid #30363d;border-radius:5px;padding:.25rem .4rem;font-size:.82rem" oninput="RL.renderCards()">
+  <span style="font-size:.75rem;color:#484f58">/hr</span>
+
+  <label style="margin-left:.8rem">Max score</label>
+  <input type="number" id="max-score" value="" min="0" placeholder="∞" style="width:80px;background:#161b22;color:#e6edf3;border:1px solid #30363d;border-radius:5px;padding:.25rem .4rem;font-size:.82rem" oninput="RL.renderCards()">
+
+  <label style="margin-left:.8rem">Max age (hrs)</label>
+  <input type="number" id="max-age" value="" min="0" placeholder="∞" style="width:60px;background:#161b22;color:#e6edf3;border:1px solid #30363d;border-radius:5px;padding:.25rem .4rem;font-size:.82rem" oninput="RL.renderCards()">
+
+  <label style="margin-left:.8rem;display:flex;align-items:center;gap:.3rem;cursor:pointer">
+    <input type="checkbox" id="hide-xpost" onchange="RL.renderCards()"> hide crossposts
+  </label>
+  <label style="display:flex;align-items:center;gap:.3rem;cursor:pointer">
+    <input type="checkbox" id="hide-self" onchange="RL.renderCards()"> hide self-posts
+  </label>
+
+  <input id="filter-input" type="search" placeholder="Filter titles…" oninput="RL.renderCards()">
+</div>
+
+<div id="sources-panel">
+  <span style="font-size:.78rem;color:#8b949e;margin-right:.3rem">Subreddits:</span>
+  <span id="sub-tags"></span>
+  <div id="add-sub-form">
+    <input id="add-sub-input" type="text" placeholder="add subreddit…" onkeydown="if(event.key==='Enter')RL.addSub()">
+    <select id="add-sub-sort">
+      <option value="hot">hot</option>
+      <option value="rising">rising</option>
+      <option value="new">new</option>
+      <option value="controversial">controversial</option>
+    </select>
+    <button id="add-sub-btn" onclick="RL.addSub()">Add</button>
+  </div>
+</div>
+
+<div id="grid"><div id="empty">Hit Fetch to load posts.</div></div>
+
+<footer id="footer">Total seen: 0</footer>
+
+<!-- Similar Subreddits Modal -->
+<div id="similar-modal">
+  <div class="modal-content">
+    <h3>🔍 Similar Subreddits: <span id="similar-sub-title"></span></h3>
+    <div id="similar-methods" class="method-tabs"></div>
+    <div id="similar-results"></div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="RL.closeSimilarModal()">Close</button>
+      <button id="add-all-btn" class="btn-primary" style="background:#1f6feb" onclick="RL.addAllSimilar()">Add all</button>
+      <button id="add-selected-btn" class="btn-primary" onclick="RL.addSelectedSimilar()">Add selected (0)</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+const RL = {};
+window.RL = RL;
+
+// ── Console capture (survives refresh, FIFO 100) ────────────────────────────
+const LOG_KEY = 'rl_console_buffer_v1';
+const MAX_LOG = 100;
+function loadBuf(){ try{return JSON.parse(localStorage.getItem(LOG_KEY)||'[]')}catch{return[]} }
+function saveBuf(b){ try{localStorage.setItem(LOG_KEY, JSON.stringify(b.slice(-MAX_LOG)))}catch{} }
+function pushLog(level, args){
+  const buf = loadBuf();
+  let msg;
+  try { msg = args.map(a => typeof a === 'string' ? a : JSON.stringify(a)).join(' '); }
+  catch { msg = '[unserializable]'; }
+  buf.push({t: new Date().toISOString(), level, msg: msg.slice(0, 2000)});
+  saveBuf(buf);
+}
+['log','warn','error','info'].forEach(lvl => {
+  const orig = console[lvl].bind(console);
+  console[lvl] = function(){ pushLog(lvl.toUpperCase(), [...arguments]); orig(...arguments); };
+});
+window.addEventListener('error', e => pushLog('ERROR', [`${e.message} @ ${e.filename}:${e.lineno}:${e.colno}`]));
+window.addEventListener('unhandledrejection', e => pushLog('ERROR', [`UnhandledRejection: ${e.reason}`]));
+
+// ── State ───────────────────────────────────────────────────────────────────
+let allPosts = [];
+let currentJobId = null;
+let pollTimeout = null;
+
+function stopPolling(){
+  if (pollTimeout){ clearTimeout(pollTimeout); pollTimeout = null; }
+}
+window.addEventListener('beforeunload', () => {
+  stopPolling();
+  if (currentJobId){
+    navigator.sendBeacon(`/export/screenshots/cancel/${currentJobId}`);
+  }
+});
+
+// ── Progress bar ────────────────────────────────────────────────────────────
+let _pTimer = null;
+function pbStart() {
+  const b = document.getElementById('progress-bar');
+  b.className = '';
+  b.style.opacity = '1';
+  b.style.width = '0';
+  clearInterval(_pTimer);
+  let w = 0;
+  _pTimer = setInterval(() => {
+    w += (90 - w) * 0.08;
+    b.style.width = w + '%';
+  }, 120);
+}
+function pbDone() {
+  clearInterval(_pTimer);
+  const b = document.getElementById('progress-bar');
+  b.style.width = '100%';
+  setTimeout(() => b.className = 'done', 150);
+  setTimeout(() => { b.style.width = '0'; b.className = ''; b.style.opacity = '1'; }, 700);
+}
+
+// ── Export options helpers ──────────────────────────────────────────────────
+RL.updateExportUI = function() {
+  const mode = document.querySelector('input[name="export-mode"]:checked').value;
+  document.getElementById('export-count').style.display   = mode === 'count'   ? '' : 'none';
+  document.getElementById('export-percent').style.display = mode === 'percent' ? '' : 'none';
+  document.getElementById('export-pct-label').style.display = mode === 'percent' ? '' : 'none';
+};
+
+RL.toggleAllSubs = function(cb) {
+  document.querySelectorAll('#sub-checkboxes input[type=checkbox]').forEach(c => c.checked = cb.checked);
+};
+
+function getExportBody() {
+  const mode = document.querySelector('input[name="export-mode"]:checked').value;
+  const body = {};
+  if (mode === 'count')   body.limit   = parseInt(document.getElementById('export-count').value) || 50;
+  if (mode === 'percent') body.percent = parseFloat(document.getElementById('export-percent').value) || 50;
+  const allSubs = document.getElementById('export-all-subs').checked;
+  if (!allSubs) {
+    body.subreddits = [...document.querySelectorAll('#sub-checkboxes input:checked')].map(c => c.value);
+  }
+  return body;
+}
+
+// ── Fetch ───────────────────────────────────────────────────────────────────
+RL.doFetch = async function() {
+  const btn = document.getElementById('fetch-btn');
+  const status = document.getElementById('status');
+  btn.disabled = true;
+  status.textContent = 'Fetching…';
+  pbStart();
+  try {
+    const selectedSub = document.getElementById('fetch-sub-select').value;
+    const body = selectedSub ? { subreddits: [selectedSub] } : {};
+    const r = await fetch('/fetch', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(body),
+    });
+    const d = await r.json();
+    if (d.status !== 'ok') throw new Error(d.message || 'unknown error');
+    allPosts = d.posts || [];
+    document.getElementById('copy-urls-btn').disabled = !allPosts.length;
+    status.textContent = `${d.new} new · ${d.skipped} skipped · ${d.fetched} fetched`;
+    RL.renderCards();
+    RL.loadStats();
+  } catch (e) {
+    status.textContent = 'Error: ' + e.message;
+  } finally {
+    pbDone();
+    btn.disabled = false;
+  }
+};
+
+// ── Export ──────────────────────────────────────────────────────────────────
+RL.doExport = async function() {
+  const btn = document.getElementById('export-btn');
+  const status = document.getElementById('status');
+  btn.disabled = true;
+  status.textContent = 'Sending email…';
+  pbStart();
+  try {
+    const r = await fetch('/export', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(getExportBody()),
+    });
+    const d = await r.json();
+    if (d.status !== 'ok') throw new Error(d.message || 'unknown error');
+    status.textContent = `Email sent: ${d.posts} posts`;
+  } catch (e) {
+    status.textContent = 'Export error: ' + e.message;
+  } finally {
+    pbDone();
+    btn.disabled = false;
+  }
+};
+
+RL.doCopyUrls = function() {
+  const btn = document.getElementById('copy-urls-btn');
+  const status = document.getElementById('status');
+  const sortKey   = document.getElementById('sort-select').value;
+  const filter    = document.getElementById('filter-input').value.toLowerCase();
+  const minVel    = parseFloat(document.getElementById('min-velocity').value) || 0;
+  const maxScore  = parseFloat(document.getElementById('max-score').value) || Infinity;
+  const maxAgeHrs = parseFloat(document.getElementById('max-age').value) || Infinity;
+  const hideXpost = document.getElementById('hide-xpost').checked;
+  const hideSelf  = document.getElementById('hide-self').checked;
+  const nowSec    = Date.now() / 1000;
+
+  let posts = allPosts.filter(p => {
+    if (filter && !p.title.toLowerCase().includes(filter)) return false;
+    if (p.velocity < minVel) return false;
+    if (p.score > maxScore) return false;
+    if (maxAgeHrs < Infinity && (nowSec - p.created_utc) / 3600 > maxAgeHrs) return false;
+    if (hideXpost && p.is_crosspost) return false;
+    if (hideSelf && p.permalink === p.url) return false;
+    return true;
+  });
+  posts.sort((a, b) => (b[sortKey] || 0) - (a[sortKey] || 0));
+
+  const urls = posts.map(p => p.url).join('\n');
+  btn.disabled = true;
+  navigator.clipboard.writeText(urls).then(() => {
+    status.textContent = `Copied ${posts.length} URLs to clipboard`;
+  }).catch(() => {
+    status.textContent = 'Clipboard access denied';
+  }).finally(() => {
+    btn.disabled = !allPosts.length;
+  });
+};
+
+RL.doCardExport = async function() {
+  const btn = document.getElementById('card-btn');
+  const status = document.getElementById('status');
+  btn.disabled = true;
+  status.textContent = 'Generating screenshot…';
+  pbStart();
+  try {
+    const r = await fetch('/export/images', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(getExportBody()),
+    });
+    const d = await r.json();
+    if (d.status !== 'ok') throw new Error(d.message || 'unknown error');
+    status.textContent = `Screenshot sent: ${d.posts} posts`;
+  } catch (e) {
+    status.textContent = 'Image export error: ' + e.message;
+  } finally {
+    pbDone();
+    btn.disabled = false;
+  }
+};
+
+RL.doScreenshotExport = async function() {
+  const btn = document.getElementById('screenshot-btn');
+  const cancelBtn = document.getElementById('cancel-btn');
+  const emailBtn = document.getElementById('email-zip-btn');
+  const status = document.getElementById('status');
+  
+  btn.disabled = true;
+  emailBtn.style.display = 'none';
+  cancelBtn.style.display = '';  // Optimistic reveal
+  status.textContent = 'Starting export…';
+  pbStart();
+  
+  const body = getExportBody();
+  body.full_page = document.getElementById('export-full-page').checked;
+  
+  let r, txt;
+  try {
+    r = await fetch('/export/screenshots/start', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(body),
+    });
+    txt = await r.text();
+  } catch (e) {
+    status.textContent = 'Network error: ' + e.message;
+    cancelBtn.style.display = 'none'; pbDone(); btn.disabled = false; return;
+  }
+  
+  let d;
+  try { d = JSON.parse(txt); }
+  catch { d = {status:'error', message: 'Server returned non-JSON: ' + txt.slice(0, 200)}; }
+  
+  if (!r.ok || d.status === 'error') {
+    status.textContent = 'Export error: ' + (d.message || r.statusText);
+    if (d.code === 'chromium_missing') {
+      status.innerHTML += ' <a href="#" onclick="RL.generateBugReport();return false" style="color:#58a6ff">Generate bug report</a>';
+    }
+    cancelBtn.style.display = 'none'; pbDone(); btn.disabled = false; return;
+  }
+  
+  currentJobId = d.job_id;
+  pollScreenshotStatus();
+};
+
+async function pollScreenshotStatus() {
+  if (!currentJobId) return;
+  const btn = document.getElementById('screenshot-btn');
+  const cancelBtn = document.getElementById('cancel-btn');
+  const emailBtn = document.getElementById('email-zip-btn');
+  const status = document.getElementById('status');
+  try {
+    const r = await fetch(`/export/screenshots/status/${currentJobId}`);
+    const d = await r.json();
+    status.textContent = `Exporting ${d.done} / ${d.total} · ${d.phase || d.state}…`;
+    
+    if (d.state === 'complete') {
+      stopPolling(); pbDone();
+      status.textContent = `Export complete: ${d.done} screenshots (${d.failed} failed)`;
+      btn.disabled = false;
+      cancelBtn.style.display = 'none';
+      emailBtn.style.display = '';
+      window.location = `/export/screenshots/download/${currentJobId}`;
+    } else if (d.state === 'error') {
+      stopPolling(); pbDone();
+      status.textContent = 'Export failed: ' + (d.error || 'unknown');
+      btn.disabled = false;
+      cancelBtn.style.display = 'none';
+    } else if (d.state === 'cancelled') {
+      stopPolling(); pbDone();
+      status.textContent = 'Export cancelled';
+      btn.disabled = false;
+      cancelBtn.style.display = 'none';
+      if (d.zip_ready) window.location = `/export/screenshots/download/${currentJobId}`;
+    } else {
+      pollTimeout = setTimeout(pollScreenshotStatus, 1000);
+    }
+  } catch (e) {
+    stopPolling(); pbDone();
+    status.textContent = 'Status error: ' + e.message;
+    btn.disabled = false;
+    cancelBtn.style.display = 'none';
+  }
+}
+
+RL.cancelScreenshotJob = async function() {
+  if (!currentJobId) return;
+  document.getElementById('status').textContent = 'Cancelling…';
+  try { await fetch(`/export/screenshots/cancel/${currentJobId}`, {method:'POST'}); }
+  catch {}
+};
+
+RL.emailScreenshotZip = async function() {
+  if (!currentJobId) return;
+  const btn = document.getElementById('email-zip-btn');
+  const status = document.getElementById('status');
+  btn.disabled = true;
+  status.textContent = 'Emailing ZIP…';
+  try {
+    const r = await fetch(`/export/screenshots/email/${currentJobId}`, {method:'POST'});
+    const d = await r.json();
+    if (d.status !== 'ok') throw new Error(d.message || 'unknown error');
+    status.textContent = 'ZIP emailed';
+  } catch (e) {
+    status.textContent = 'Email error: ' + e.message;
+  } finally {
+    btn.disabled = false;
+  }
+};
+
+// ── Bug Report ──────────────────────────────────────────────────────────────
+RL.generateBugReport = async function() {
+  const btn = document.getElementById('bug-report-btn');
+  const status = document.getElementById('status');
+  if (btn) { btn.disabled = true; btn.textContent = 'Building…'; }
+  try {
+    const res = await fetch('/api/bug-report');
+    if (!res.ok) {
+      let errMsg = `HTTP ${res.status}`;
+      try { const j = await res.json(); errMsg = j.error || errMsg; } catch {}
+      throw new Error(errMsg);
+    }
+    let md = await res.text();
+    const tail = (loadBuf() || []).slice(-500);
+    if (tail.length) {
+      md += '\n\n## Client Console (most recent 500)\n```\n'
+          + tail.map(e => `[${e.t}] ${e.level}: ${e.msg}`).join('\n')
+          + '\n```\n';
+    }
+    md += `\n## Client Environment\n- URL: ${location.href}\n- UA: ${navigator.userAgent}\n`;
+    const blob = new Blob([md], { type: 'text/markdown' });
+    const ts = new Date().toISOString().replace(/[:.]/g, '-');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `reddit_lens_bugreport_${ts}.md`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    status.textContent = 'Bug report downloaded';
+  } catch (e) {
+    status.textContent = 'Bug report failed: ' + e.message;
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '🪲 Bug Report'; }
+  }
+};
+
+// ── Render ──────────────────────────────────────────────────────────────────
+RL.renderCards = function() {
+  const sortKey   = document.getElementById('sort-select').value;
+  const filter    = document.getElementById('filter-input').value.toLowerCase();
+  const minVel    = parseFloat(document.getElementById('min-velocity').value) || 0;
+  const maxScore  = parseFloat(document.getElementById('max-score').value) || Infinity;
+  const maxAgeHrs = parseFloat(document.getElementById('max-age').value) || Infinity;
+  const hideXpost = document.getElementById('hide-xpost').checked;
+  const hideSelf  = document.getElementById('hide-self').checked;
+  const nowSec    = Date.now() / 1000;
+  const grid      = document.getElementById('grid');
+
+  let posts = allPosts.filter(p => {
+    if (filter && !p.title.toLowerCase().includes(filter)) return false;
+    if (p.velocity < minVel) return false;
+    if (p.score > maxScore) return false;
+    if (maxAgeHrs < Infinity && (nowSec - p.created_utc) / 3600 > maxAgeHrs) return false;
+    if (hideXpost && p.is_crosspost) return false;
+    if (hideSelf && p.permalink === p.url) return false;
+    return true;
+  });
+  posts.sort((a, b) => (b[sortKey] || 0) - (a[sortKey] || 0));
+
+  if (!posts.length) {
+    grid.innerHTML = '<div id="empty">No posts match.</div>';
+    return;
+  }
+
+  function esc(s) {
+    return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  grid.innerHTML = posts.map(p => {
+    const controversy = p.controversy_score > 0
+      ? `<span class="badge controversy">⚡ ${Math.round(p.controversy_score).toLocaleString()}</span>` : '';
+    const velocity = p.velocity > 1
+      ? `<span class="badge velocity">💬 ${p.velocity.toFixed(1)}/hr</span>` : '';
+    const flair = p.flair ? `<span class="badge">${esc(p.flair)}</span>` : '';
+    const nsfw  = p.over_18 ? `<span class="badge" style="color:#f85149">NSFW</span>` : '';
+    const xpost = p.is_crosspost ? `<span class="badge">↗ xpost</span>` : '';
+    const preview = p.preview ? `<div class="card-preview">${esc(p.preview.slice(0, 160))}</div>` : '';
+    return `<div class="card">
+      <div class="card-title"><a href="${esc(p.url)}" target="_blank" rel="noopener">${esc(p.title)}</a></div>
+      <div class="card-meta">
+        <span class="badge">r/${esc(p.subreddit)}</span>
+        <span class="badge">▲ ${(p.score||0).toLocaleString()}</span>
+        ${controversy}${velocity}${flair}${nsfw}${xpost}
+      </div>
+      ${preview}
+      <div class="card-links">
+        <a href="${esc(p.permalink)}" target="_blank" rel="noopener">comments</a>
+        <a href="${esc(p.url)}" target="_blank" rel="noopener">link ↗</a>
+      </div>
+    </div>`;
+  }).join('');
+};
+
+// ── Sources ─────────────────────────────────────────────────────────────────
+RL.loadSources = async function() {
+  try {
+    const r = await fetch('/sources');
+    const sources = await r.json();
+
+    function esc(s) {
+      return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    document.getElementById('sub-tags').innerHTML = sources.map(s => {
+      const sub = s.subreddit;
+      let cluster = RL.getCluster(sub);
+      const currentSubs = sources.map(src => src.subreddit.toLowerCase());
+      const toAdd = cluster.filter(name => name.toLowerCase() !== sub.toLowerCase() && !currentSubs.includes(name.toLowerCase()));
+      const addAllHtml = toAdd.length > 0 
+        ? `<div class="dropdown-divider"></div>
+           <div class="dropdown-header">Batch Add</div>
+           <a href="#" onclick="event.preventDefault();RL.quickAddAll('${esc(sub)}', this)">➕ Add All Cluster (${toAdd.length})</a>`
+        : '';
+
+      return `<span class="sub-tag">r/${esc(sub)} <small style="color:#484f58">${esc(s.sort)}</small>
+       <div class="suggest-dropdown">
+         <button class="suggest-btn" title="Find similar">🔍</button>
+         <div class="suggest-dropdown-content">
+           <a href="#" onclick="event.preventDefault();RL.suggestSimilar('${esc(sub)}')">🔍 Browse Similar...</a>
+           ${addAllHtml}
+         </div>
+       </div>
+       <button onclick="RL.removeSub('${esc(sub)}')" title="Remove">×</button></span>`;
+    }).join('');
+
+    document.getElementById('sub-checkboxes').innerHTML = sources.map(s =>
+      `<label class="sub-check-label">
+         <input type="checkbox" value="${esc(s.subreddit)}" checked>
+         r/${esc(s.subreddit)}
+       </label>`
+    ).join('');
+
+    const sel = document.getElementById('fetch-sub-select');
+    const prev = sel.value;
+    sel.innerHTML = '<option value="">All subreddits</option>' +
+      sources.map(s => `<option value="${esc(s.subreddit)}"${s.subreddit===prev?' selected':''}>r/${esc(s.subreddit)}</option>`).join('');
+  } catch {}
+};
+
+RL.addSub = async function() {
+  const input = document.getElementById('add-sub-input');
+  const sort  = document.getElementById('add-sub-sort').value;
+  const sub   = input.value.trim().replace(/^r\//i, '');
+  if (!sub) return;
+  const r = await fetch('/sources', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({action: 'add', subreddit: sub, sort}),
+  });
+  const d = await r.json();
+  if (d.status === 'ok') { input.value = ''; RL.loadSources(); }
+  else alert(d.message);
+};
+
+RL.removeSub = async function(sub) {
+  const r = await fetch('/sources', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({action: 'remove', subreddit: sub}),
+  });
+  if ((await r.json()).status === 'ok') RL.loadSources();
+};
+
+const SIMILAR_CLUSTERS = {
+  relationships: ['AITA', 'relationship_advice', 'TrueOffMyChest', 'confession', 'offmychest', 'AmItheAsshole', 'marriage', 'dating_advice'],
+  news:          ['worldnews', 'news', 'politics', 'Conservative', 'liberal', 'uknews', 'nottheonion', 'neutralnews'],
+  tech:          ['technology', 'programming', 'webdev', 'MachineLearning', 'artificial', 'Python', 'javascript', 'linux', 'sysadmin', 'devops'],
+  gaming:        ['gaming', 'Games', 'pcgaming', 'NintendoSwitch', 'PS5', 'XboxSeriesX', 'Steam', 'Minecraft', 'LeagueOfLegends'],
+  science:       ['science', 'space', 'physics', 'biology', 'NatureIsFuckingLit', 'explainlikeimfive', 'AskScience'],
+  finance:       ['personalfinance', 'investing', 'wallstreetbets', 'cryptoCurrency', 'Bitcoin', 'stocks', 'financialindependence'],
+  entertainment: ['movies', 'television', 'Netflix', 'anime', 'Music', 'MarvelStudios', 'StarWars'],
+  lifestyle:     ['Fitness', 'Cooking', 'travel', 'HomeImprovement', 'gardening', 'DIY', 'malefashionadvice', 'femalefashionadvice'],
+  default:       ['funny', 'pics', 'todayilearned', 'AskReddit', 'mildlyinteresting', 'interestingasfuck', 'Unexpected'],
+};
+
+const CLUSTER_KEYWORDS = {
+  relationships: ['advice', 'dating', 'marriage', 'love', 'sex', 'confess', 'aita', 'relationship'],
+  news:          ['news', 'politics', 'current', 'world', 'local', 'report'],
+  tech:          ['tech', 'program', 'code', 'dev', 'software', 'hardware', 'ai', 'ml', 'data', 'web', 'cyber', 'python', 'rust', 'linux', 'apple', 'google', 'comput'],
+  gaming:        ['game', 'gaming', 'play', 'console', 'nintendo', 'playstation', 'xbox', 'steam', 'poker', 'rpg'],
+  science:       ['science', 'space', 'physic', 'biology', 'nature', 'askscience', 'learn', 'theory'],
+  finance:       ['finance', 'money', 'invest', 'stock', 'crypto', 'coin', 'wealth', 'tax', 'bank', 'economy'],
+  entertainment: ['movie', 'film', 'tv', 'show', 'music', 'art', 'comic', 'anime', 'starwars', 'marvel'],
+  lifestyle:     ['fit', 'cook', 'food', 'travel', 'home', 'garden', 'diy', 'fashion', 'health', 'beauty'],
+};
+
+RL.getCluster = function(sub) {
+  const s = sub.toLowerCase();
+  for (const k in SIMILAR_CLUSTERS) {
+    if (k === 'default') continue;
+    if (SIMILAR_CLUSTERS[k].some(x => x.toLowerCase() === s)) return SIMILAR_CLUSTERS[k];
+  }
+  for (const k in CLUSTER_KEYWORDS) {
+    if (CLUSTER_KEYWORDS[k].some(kw => s.includes(kw))) return SIMILAR_CLUSTERS[k];
+  }
+  return SIMILAR_CLUSTERS.default;
+};
+
+const SIMILAR_METHODS = [
+  { id: 'reddit',   label: 'Reddit Search', internal: true },
+  { id: 'cluster',  label: 'Cluster',       internal: true },
+  { id: 'overlap',  label: 'Overlap',       internal: true,
+    fetchUrl: s => `/suggest_overlap?q=${encodeURIComponent(s)}`,
+    externalUrl: s => `https://subredditstats.com/subreddit-user-overlaps/${s}`,
+    externalLabel: 'Subreddit Stats' },
+  { id: 'semantic', label: 'Semantic',      internal: true,
+    fetchUrl: s => `/suggest_semantic?q=${encodeURIComponent(s)}`,
+    externalUrl: s => `https://www.google.com/search?q=reddit+subreddits+similar+to+r%2F${encodeURIComponent(s)}`,
+    externalLabel: 'Google Search' },
+  { id: 'graph',    label: 'Graph',         internal: true,
+    fetchUrl: s => `/suggest_graph?q=${encodeURIComponent(s)}`,
+    externalUrl: s => `https://anvaka.github.io/sayit/?query=${encodeURIComponent(s)}`,
+    externalLabel: 'SayIt Graph' },
+  { id: 'reveddit', label: 'X Posts',       internal: true,
+    fetchUrl: s => `/suggest_xposts?q=${encodeURIComponent(s)}`,
+    externalUrl: s => `https://www.reveddit.com/?subreddit=${encodeURIComponent(s)}`,
+    externalLabel: 'Reveddit' },
+  { id: 'all',      label: '⚡ All Methods', internal: true,
+    fetchUrl: s => `/suggest_all?q=${encodeURIComponent(s)}` },
+];
+
+RL.suggestSimilar = function(sub) {
+  const modal = document.getElementById('similar-modal');
+  modal.style.display = 'flex';
+  modal.dataset.sub = sub;
+  document.getElementById('similar-sub-title').textContent = 'r/' + sub;
+  RL.switchSimilarMethod('reddit');
+  
+  const closeHandler = (e) => {
+    if (e.key === 'Escape') RL.closeSimilarModal();
+  };
+  document.addEventListener('keydown', closeHandler);
+  modal._closeHandler = closeHandler;
+};
+
+RL.quickAddAll = async function(sub, el) {
+  let list = RL.getCluster(sub);
+  const currentSubs = [...document.querySelectorAll('#sub-tags span')].map(s => s.textContent.split(' ')[0].replace('r/', '').toLowerCase());
+  const toAdd = list.filter(s => s.toLowerCase() !== sub.toLowerCase() && !currentSubs.includes(s.toLowerCase()));
+  
+  if (!toAdd.length) return;
+  
+  const oldText = el.textContent;
+  el.textContent = 'Adding...';
+  el.style.pointerEvents = 'none';
+  
+  try {
+    const r = await fetch('/sources', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({action: 'batch_add', subreddits: toAdd, sort: 'hot'}),
+    });
+    const d = await r.json();
+    if (d.status === 'ok') RL.loadSources();
+    else alert(d.message);
+  } catch (e) {
+    alert('Failed to add subreddits.');
+  } finally {
+    el.textContent = oldText;
+    el.style.pointerEvents = 'auto';
+  }
+};
+
+RL.switchSimilarMethod = async function(methodId, queryOverride) {
+  const modal = document.getElementById('similar-modal');
+  const sub = modal.dataset.sub;
+  const currentQuery = queryOverride || sub;
+  const container = document.getElementById('similar-methods');
+  const results = document.getElementById('similar-results');
+
+  container.innerHTML = SIMILAR_METHODS.map(m =>
+    `<div class="method-tab ${m.id === methodId ? 'active' : ''}" onclick="RL.switchSimilarMethod('${m.id}')">${m.label}</div>`
+  ).join('');
+
+  const method = SIMILAR_METHODS.find(m => m.id === methodId);
+  if (!method) return;
+
+  const externalLink = method.externalUrl
+    ? `<a href="${method.externalUrl(sub)}" target="_blank" rel="noopener"
+         style="padding:4px 10px;text-decoration:none;white-space:nowrap;border:1px solid #30363d;border-radius:6px;color:#8b949e;font-size:12px">
+         Open ${method.externalLabel} ↗</a>`
+    : '';
+
+  const safeQuery = currentQuery.replace(/"/g, '&quot;');
+  const searchHeader = `
+    <div style="padding:10px 12px;border-bottom:1px solid #30363d;display:flex;gap:8px;align-items:center;background:#161b22">
+      <input type="text" id="similar-search-input" value="${safeQuery}"
+        style="flex:1;background:#0d1117;color:#c9d1d9;border:1px solid #30363d;border-radius:6px;padding:6px 10px;min-width:0"
+        placeholder="Refine query..."
+        onkeydown="if(event.key==='Enter') RL.switchSimilarMethod('${methodId}', this.value)">
+      <button class="btn-primary" onclick="RL.switchSimilarMethod('${methodId}', document.getElementById('similar-search-input').value)" style="padding:4px 12px">Search</button>
+      ${externalLink}
+    </div>`;
+
+  results.innerHTML = searchHeader + '<div id="similar-inner-results"><div style="padding:20px;color:#8b949e">Loading suggestions…</div></div>';
+  document.getElementById('add-all-btn').style.display = 'none';
+  document.getElementById('add-selected-btn').style.display = 'none';
+
+  let list = [];
+  if (method.id === 'cluster') {
+    list = RL.getCluster(currentQuery);
+  } else if (method.fetchUrl) {
+    try {
+      const r = await fetch(method.fetchUrl(currentQuery));
+      list = await r.json();
+    } catch (e) {
+      console.error(`Failed to fetch ${method.id} suggestions`, e);
+    }
+  } else {
+    try {
+      const r = await fetch(`/suggest_similar?q=${encodeURIComponent(currentQuery)}`);
+      list = await r.json();
+    } catch (e) {
+      console.error('Failed to fetch reddit suggestions', e);
+    }
+  }
+
+  const currentSubs = [...document.querySelectorAll('#sub-tags span')].map(s => s.textContent.split(' ')[0].replace('r/', '').toLowerCase());
+  const filtered = list.filter(s => s.toLowerCase() !== sub.toLowerCase() && !currentSubs.includes(s.toLowerCase()));
+
+  const innerResults = document.getElementById('similar-inner-results') || results;
+  if (!filtered.length) {
+    innerResults.innerHTML = `<div style="padding:20px;color:#8b949e">No new suggestions found via ${method.label}. Try another tab or refine the query.</div>`;
+  } else {
+    innerResults.innerHTML = `
+      <label class="suggestion-item" style="border-bottom:1px solid #30363d;margin-bottom:8px">
+        <input type="checkbox" onchange="[...document.querySelectorAll('#similar-results input[type=checkbox]')].forEach(i=>i.checked=this.checked);RL.updateAddCount()">
+        <span style="font-weight:600">Select All</span>
+      </label>
+      ` + filtered.map(s => `
+      <label class="suggestion-item">
+        <input type="checkbox" value="${s}" onchange="RL.updateAddCount()">
+        <span>r/${s}</span>
+      </label>`).join('');
+    document.getElementById('add-all-btn').style.display = '';
+    document.getElementById('add-selected-btn').style.display = '';
+  }
+  RL.updateAddCount();
+};
+
+  RL.updateAddCount = function() {
+    const suggestions = [...document.querySelectorAll('#similar-results input[value]')];
+    const checked = suggestions.filter(i => i.checked).length;
+    
+    const selectedBtn = document.getElementById('add-selected-btn');
+    selectedBtn.disabled = checked === 0;
+    selectedBtn.textContent = `Add selected (${checked})`;
+    
+    const allBtn = document.getElementById('add-all-btn');
+    allBtn.disabled = suggestions.length === 0;
+    allBtn.textContent = `Add all (${suggestions.length})`;
+  };
+
+RL.addSelectedSimilar = async function() {
+  const checked = [...document.querySelectorAll('#similar-results input[value]:checked')].map(i => i.value);
+  if (!checked.length) return;
+  await RL._addBatchSimilar(checked, document.getElementById('add-selected-btn'));
+};
+
+RL.addAllSimilar = async function() {
+  const all = [...document.querySelectorAll('#similar-results input[value]')].map(i => i.value);
+  if (!all.length) return;
+  await RL._addBatchSimilar(all, document.getElementById('add-all-btn'));
+};
+
+RL._addBatchSimilar = async function(subs, btn) {
+  const oldText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Adding...';
+  
+  try {
+    const r = await fetch('/sources', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({action: 'batch_add', subreddits: subs, sort: 'hot'}),
+    });
+    const d = await r.json();
+    if (d.status !== 'ok') alert(d.message);
+  } catch (e) {
+    alert('Failed to add subreddits.');
+  } finally {
+    RL.loadSources();
+    RL.closeSimilarModal();
+    btn.disabled = false;
+    btn.textContent = oldText;
+  }
+};
+
+RL.closeSimilarModal = function() {
+  const modal = document.getElementById('similar-modal');
+  modal.style.display = 'none';
+  if (modal._closeHandler) {
+    document.removeEventListener('keydown', modal._closeHandler);
+    delete modal._closeHandler;
+  }
+};
+
+RL.loadStats = async function() {
+  try {
+    const r = await fetch('/stats');
+    const d = await r.json();
+    document.getElementById('footer').textContent =
+      `Total seen: ${(d.total||0).toLocaleString()}` +
+      (d.by_subreddit?.length
+        ? ' · ' + d.by_subreddit.map(s => `r/${s.subreddit} ${s.count}`).join(' · ')
+        : '');
+  } catch {}
+};
+
+// ── On load ─────────────────────────────────────────────────────────────────
+RL.loadStats();
+RL.loadSources();
+})();
+</script>
+</body>
+</html>
