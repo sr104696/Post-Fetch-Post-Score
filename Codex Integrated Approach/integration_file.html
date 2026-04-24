@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reddit Lens Integrated Mode</title>
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:system-ui,sans-serif;background:#0d1117;color:#e6edf3;min-height:100vh}
+  header{padding:1rem 1.5rem;border-bottom:1px solid #21262d;display:flex;align-items:center;gap:.6rem;flex-wrap:wrap}
+  header h1{font-size:1.2rem;font-weight:600;margin-right:.4rem}
+  .hbtn{padding:.45rem 1.1rem;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:.9rem}
+  .hbtn:disabled{opacity:.5;cursor:default}
+  #fetch-btn{background:#238636} #process-btn{background:#1f6feb} #export-json-btn{background:#8957e5} #export-csv-btn{background:#6e7681}
+  #status{font-size:.82rem;color:#8b949e;margin-left:auto}
+  #controls{padding:.6rem 1.5rem;display:flex;gap:.5rem;align-items:center;border-bottom:1px solid #21262d;flex-wrap:wrap}
+  #controls label{font-size:.82rem;color:#8b949e}
+  #controls select,#filter-input,#manual-input{background:#161b22;color:#e6edf3;border:1px solid #30363d;border-radius:5px;padding:.35rem .5rem;font-size:.82rem}
+  #filter-input{margin-left:auto;width:220px}
+  #tabs{padding:.5rem 1.5rem;border-bottom:1px solid #21262d;display:flex;gap:.5rem}
+  .tab{background:#21262d;color:#8b949e;border:1px solid #30363d;border-radius:5px;padding:.35rem .6rem;cursor:pointer;font-size:.82rem}
+  .tab.active{background:#1f6feb;color:#fff;border-color:#1f6feb}
+  .panel{display:none;padding:1rem 1.5rem;border-bottom:1px solid #21262d}
+  .panel.active{display:block}
+  #manual-input{width:100%;min-height:100px;resize:vertical}
+  #grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:1rem;padding:1.2rem 1.5rem}
+  .card{background:#161b22;border:1px solid #21262d;border-radius:8px;padding:1rem;display:flex;flex-direction:column;gap:.5rem}
+  .card-title a{color:#58a6ff;text-decoration:none;font-size:.95rem;font-weight:500;line-height:1.4}
+  .card-title a:hover{text-decoration:underline}
+  .card-meta{font-size:.75rem;color:#8b949e;display:flex;flex-wrap:wrap;gap:.4rem}
+  .badge{background:#21262d;border-radius:4px;padding:.1rem .4rem}
+  .delta-up{color:#3fb950}.delta-down{color:#f85149}
+  #empty{text-align:center;padding:4rem;color:#484f58;grid-column:1/-1}
+  footer{padding:.8rem 1.5rem;border-top:1px solid #21262d;font-size:.78rem;color:#484f58}
+</style>
+</head>
+<body>
+<header>
+  <h1>🔭 Reddit Lens</h1>
+  <button id="fetch-btn" class="hbtn">Fetch</button>
+  <button id="process-btn" class="hbtn">Score / Analyze / Process Posts</button>
+  <button id="export-json-btn" class="hbtn">Export JSON</button>
+  <button id="export-csv-btn" class="hbtn">Export CSV</button>
+  <span id="status">Ready</span>
+</header>
+
+<div id="controls">
+  <label>Mode</label>
+  <select id="mode-select">
+    <option value="balanced">Balanced</option>
+    <option value="spicy">Spicy (controversy)</option>
+    <option value="discussion">Discussion-heavy</option>
+  </select>
+  <label>Sort</label>
+  <select id="sort-select">
+    <option value="integrated_score">Integrated Score</option>
+    <option value="velocity">Velocity</option>
+    <option value="controversy">Controversy</option>
+  </select>
+  <input id="filter-input" type="search" placeholder="Filter titles…">
+</div>
+
+<div id="tabs">
+  <button class="tab active" data-tab="live">Live Feed</button>
+  <button class="tab" data-tab="manual">Paste URLs/IDs</button>
+</div>
+
+<section class="panel active" id="panel-live">
+  <div style="font-size:.82rem;color:#8b949e">Use Fetch to pull the configured subreddit sources, then Process to apply integrated scoring and delta tracking.</div>
+</section>
+<section class="panel" id="panel-manual">
+  <textarea id="manual-input" placeholder="Paste Reddit URLs or post IDs (one per line)"></textarea>
+  <button id="manual-process-btn" class="hbtn" style="margin-top:.6rem;background:#1f6feb">Process Manual Input</button>
+</section>
+
+<div id="grid"><div id="empty">Hit Fetch to load posts.</div></div>
+<footer id="footer">Total seen: 0</footer>
+
+<script>
+(() => {
+  const state = { posts: [], processed: [], previous: new Map() };
+
+  const els = {
+    status: document.getElementById('status'),
+    grid: document.getElementById('grid'),
+    footer: document.getElementById('footer'),
+    mode: document.getElementById('mode-select'),
+    sort: document.getElementById('sort-select'),
+    filter: document.getElementById('filter-input'),
+    manualInput: document.getElementById('manual-input')
+  };
+
+  document.getElementById('fetch-btn').addEventListener('click', doFetch);
+  document.getElementById('process-btn').addEventListener('click', processCurrent);
+  document.getElementById('manual-process-btn').addEventListener('click', processManual);
+  document.getElementById('export-json-btn').addEventListener('click', () => download('json'));
+  document.getElementById('export-csv-btn').addEventListener('click', () => download('csv'));
+  els.mode.addEventListener('change', processCurrent);
+  els.sort.addEventListener('change', render);
+  els.filter.addEventListener('input', render);
+
+  document.querySelectorAll('.tab').forEach(btn => btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    btn.classList.add('active');
+    const tab = btn.dataset.tab;
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    document.getElementById(tab === 'live' ? 'panel-live' : 'panel-manual').classList.add('active');
+  }));
+
+  async function doFetch() {
+    setStatus('Fetching…');
+    try {
+      const r = await fetch('/fetch', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+      if (!r.ok) throw new Error('Fetch failed');
+      await loadData();
+      setStatus('Fetched. Click Process to score.');
+    } catch (e) {
+      setStatus(`Fetch failed: ${e.message}`);
+    }
+  }
+
+  async function loadData() {
+    const r = await fetch('/data?limit=250');
+    if (!r.ok) throw new Error('Unable to load /data');
+    const payload = await r.json();
+    state.posts = payload.items || [];
+    els.footer.textContent = `Total seen: ${payload.total || state.posts.length}`;
+  }
+
+  function scorePost(p, mode) {
+    const score = Number(p.score || 0);
+    const comments = Number(p.num_comments || 0);
+    const upvoteRatio = Number(p.upvote_ratio || 0.5);
+    const createdUtc = Number(p.created_utc || 0);
+    const ageHours = Math.max((Date.now()/1000 - createdUtc)/3600, 1/60);
+    const controversy = (1 - upvoteRatio) * 2 * (score > 0 ? Math.log10(score + 1) : 0) * 50;
+    const engagement = Math.log10(score + comments * 3 + 1) * 20;
+    const velocity = engagement / Math.log10(ageHours + 2) * 5;
+    const commentRatio = Math.min((comments / Math.max(score, 5)) * 30, 100);
+    const weights = {
+      balanced: [0.25,0.25,0.25,0.25],
+      spicy: [0.45,0.25,0.1,0.2],
+      discussion: [0.15,0.2,0.5,0.15]
+    }[mode];
+    const integrated = controversy*weights[0] + velocity*weights[1] + commentRatio*weights[2] + engagement*weights[3];
+    const prev = state.previous.get(p.url) || {};
+    const next = { score, comments, integrated_score: integrated };
+    state.previous.set(p.url, next);
+    return {
+      ...p,
+      controversy: round(controversy),
+      velocity: round(velocity),
+      comment_ratio: round(commentRatio),
+      engagement: round(engagement),
+      integrated_score: round(integrated),
+      deltas: {
+        score: prev.score !== undefined ? score - prev.score : 0,
+        comments: prev.comments !== undefined ? comments - prev.comments : 0,
+        integrated_score: prev.integrated_score !== undefined ? round(integrated - prev.integrated_score) : 0
+      }
+    };
+  }
+
+  async function processCurrent() {
+    try {
+      if (!state.posts.length) await loadData();
+      const mode = els.mode.value;
+      state.processed = state.posts.map(p => scorePost(p, mode));
+      render();
+      setStatus(`Processed ${state.processed.length} posts (${mode}).`);
+    } catch (e) {
+      setStatus(`Process failed: ${e.message}`);
+    }
+  }
+
+  function processManual() {
+    const raw = els.manualInput.value.trim();
+    if (!raw) return setStatus('Paste at least one URL/ID.');
+    const lines = raw.split(/\n+/).map(s => s.trim()).filter(Boolean);
+    const rows = lines.map((line, i) => ({
+      id: `manual-${i + 1}`,
+      title: line,
+      url: line.startsWith('http') ? line : `https://www.reddit.com/comments/${line}/`,
+      subreddit: 'manual',
+      score: 0,
+      num_comments: 0,
+      upvote_ratio: 0.5,
+      created_utc: Date.now()/1000
+    }));
+    state.posts = rows;
+    processCurrent();
+  }
+
+  function render() {
+    const sortKey = els.sort.value;
+    const q = els.filter.value.toLowerCase();
+    const data = [...state.processed]
+      .filter(p => !q || (p.title || '').toLowerCase().includes(q))
+      .sort((a,b) => Number(b[sortKey] || 0) - Number(a[sortKey] || 0));
+
+    if (!data.length) {
+      els.grid.innerHTML = '<div id="empty">No posts match current filters.</div>';
+      return;
+    }
+
+    els.grid.innerHTML = data.map(p => {
+      const ds = p.deltas.score, dc = p.deltas.comments, dg = p.deltas.integrated_score;
+      return `<article class="card">
+        <div class="card-title"><a href="${escapeHtml(p.url || '#')}" target="_blank" rel="noopener">${escapeHtml(p.title || '(untitled)')}</a></div>
+        <div class="card-meta">
+          <span class="badge">r/${escapeHtml(p.subreddit || '')}</span>
+          <span class="badge">Score ${num(p.score)}</span>
+          <span class="badge">Comments ${num(p.num_comments)}</span>
+          <span class="badge">Integrated ${num(p.integrated_score)}</span>
+        </div>
+        <div class="card-meta">
+          <span class="${cls(ds)}">Δ Score ${signed(ds)}</span>
+          <span class="${cls(dc)}">Δ Comments ${signed(dc)}</span>
+          <span class="${cls(dg)}">Δ Integrated ${signed(dg)}</span>
+        </div>
+      </article>`;
+    }).join('');
+  }
+
+  function download(type) {
+    const rows = state.processed;
+    if (!rows.length) return setStatus('Nothing to export yet.');
+    if (type === 'json') {
+      blobDownload(new Blob([JSON.stringify(rows, null, 2)], {type:'application/json'}), 'integrated_posts.json');
+    } else {
+      const cols = ['title','url','subreddit','score','num_comments','integrated_score','velocity','controversy'];
+      const csv = [cols.join(',')].concat(rows.map(r => cols.map(c => csvCell(r[c])).join(','))).join('\n');
+      blobDownload(new Blob([csv], {type:'text/csv;charset=utf-8'}), 'integrated_posts.csv');
+    }
+    setStatus(`Exported ${rows.length} rows (${type.toUpperCase()}).`);
+  }
+
+  function blobDownload(blob, name) {
+    const u = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = u; a.download = name; a.click();
+    URL.revokeObjectURL(u);
+  }
+
+  const round = n => Math.round((Number(n)||0) * 100) / 100;
+  const num = n => round(n).toLocaleString();
+  const signed = n => (n > 0 ? `+${num(n)}` : `${num(n)}`);
+  const cls = n => n > 0 ? 'delta-up' : (n < 0 ? 'delta-down' : '');
+  const csvCell = v => `"${String(v ?? '').replaceAll('"', '""')}"`;
+  const escapeHtml = s => String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');
+  const setStatus = s => { els.status.textContent = s; };
+
+  loadData().then(processCurrent).catch(() => setStatus('Ready (no /data yet).'));
+})();
+</script>
+</body>
+</html>
